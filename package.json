@@ -1,0 +1,14 @@
+{
+  "name": "pico8-nvim-snippets",
+  "description": "Snippets for PICO-8 0.2.7",
+  "contributes": {
+    "snippets": [
+      {
+        "language": [
+          "pico8"
+        ],
+        "path": "./snippets/pico8.json"
+      }
+    ]
+  }
+}

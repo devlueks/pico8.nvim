@@ -1,0 +1,63 @@
+if vim.g.loaded_pico8 then
+  return
+end
+vim.g.loaded_pico8 = true
+
+if vim.fn.has("nvim-0.10") == 0 then
+  vim.notify_once("pico8.nvim requires Neovim 0.10 or newer", vim.log.levels.ERROR)
+  return
+end
+
+local function cmds()
+  return require("pico8.commands")
+end
+
+vim.api.nvim_create_user_command("Pico8Tokens", function(o)
+  if o.range > 0 then
+    cmds().tokens(0, o.line1, o.line2)
+  else
+    cmds().tokens(0)
+  end
+end, { range = true, desc = "PICO-8: token / char count report (or count of the selected lines)" })
+
+vim.api.nvim_create_user_command("Pico8Run", function()
+  cmds().run(0)
+end, { desc = "PICO-8: save and run the cart in PICO-8" })
+
+vim.api.nvim_create_user_command("Pico8Docs", function(o)
+  cmds().docs(o.args)
+end, {
+  nargs = "?",
+  complete = function(lead)
+    return vim.tbl_filter(function(n)
+      return vim.startswith(n, lead)
+    end, cmds().doc_names())
+  end,
+  desc = "PICO-8: API documentation (cheat sheet without argument)",
+})
+
+vim.api.nvim_create_user_command("Pico8Toggle", function(o)
+  local config = require("pico8.config").get()
+  local what = o.args
+  if what == "diagnostics" then
+    config.diagnostics.enabled = not config.diagnostics.enabled
+  elseif what == "function_hints" then
+    config.tokens.function_hints = not config.tokens.function_hints
+  elseif what == "virtual_text" or what == "" then
+    config.tokens.virtual_text = not config.tokens.virtual_text
+  else
+    vim.notify("pico8: unknown option " .. what, vim.log.levels.ERROR)
+    return
+  end
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(b) and vim.bo[b].filetype == "pico8" then
+      require("pico8").refresh(b, 0)
+    end
+  end
+end, {
+  nargs = "?",
+  complete = function()
+    return { "virtual_text", "function_hints", "diagnostics" }
+  end,
+  desc = "PICO-8: toggle token virtual text, function token hints or diagnostics",
+})

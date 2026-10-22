@@ -1,0 +1,163 @@
+*pico8.txt*  PICO-8 0.2.7 support: tokens, completion, snippets, highlighting, diagnostics
+
+==============================================================================
+CONTENTS                                                      *pico8-contents*
+
+  1. Introduction ........................................ |pico8-intro|
+  2. Setup ............................................... |pico8-setup|
+  3. Token count ......................................... |pico8-tokens|
+  4. Completion and snippets ............................. |pico8-completion|
+  5. Diagnostics ......................................... |pico8-diagnostics|
+  6. Commands ............................................ |pico8-commands|
+  7. Lua API ............................................. |pico8-api|
+  8. Highlight groups .................................... |pico8-highlights|
+
+==============================================================================
+1. INTRODUCTION                                                  *pico8-intro*
+
+pico8.nvim adds support for PICO-8 0.2.7 cartridges (`*.p8`) and PICO-8 Lua
+files (`*.p8.lua`, filetype `pico8`). Everything runs inside Neovim: editor
+features are served by an in-process language server named "pico8", so every
+LSP client feature and completion plugin works without an external program.
+
+Requires Neovim 0.10 or newer.
+
+==============================================================================
+2. SETUP                                                         *pico8-setup*
+
+Calling setup is optional. Defaults: >lua
+
+  require("pico8").setup({
+    pico8_path = nil,        -- PICO-8 executable for :Pico8Run
+    run_args = {},           -- extra arguments, e.g. { "-windowed", "1" }
+    lsp = { enabled = true },
+    completion = {
+      call_snippets = true,  -- spr(${1:n}, ${2:x}, ${3:y})
+      snippets = true,       -- bundled snippets in the completion menu
+      native = "auto",       -- built-in completion if no cmp/blink (0.11+)
+    },
+    diagnostics = {
+      enabled = true,
+      debounce = 250,
+      undefined_globals = true,
+      unused = true,
+      unused_params = true,
+      unused_loop_vars = false,
+      arg_count = true,
+      globals = {},
+    },
+    tokens = {
+      virtual_text = true,
+      function_hints = false,
+      warn_ratio = 0.9,
+    },
+    highlight = { gfx_colors = true },
+    template = true,         -- fill new, empty .p8 files with a cart skeleton
+  })
+<
+With `lsp.enabled = false` completion is available through 'omnifunc'
+(|i_CTRL-X_CTRL-O|), without hover and the other LSP features.
+
+==============================================================================
+3. TOKEN COUNT                                                  *pico8-tokens*
+
+Tokens are counted like PICO-8 does: every name, literal and operator counts
+one; `,` `.` `:` `;` `::` `)` `]` `}` `end` `local` and comments are free, and
+a `-` or `~` directly attached to a number belongs to the number. Characters
+are counted in P8SCII. Code pulled in with `#include` is added to the totals.
+
+The total is shown as virtual text on the `__lua__` line, the count of each
+code tab on its `-->8` separator and, with `tokens.function_hints`, the cost
+of every function at its first line. Hovering a function (|K|) shows its
+cost as well.
+
+For a `.lua` file, the cart in the same or the parent directory that
+`#include`s it is used for the totals.
+
+==============================================================================
+4. COMPLETION AND SNIPPETS                                  *pico8-completion*
+
+Completion items: the PICO-8 0.2.7 API (with documentation and placeholders
+for required parameters), callbacks, button glyphs (type `left`, `right`,
+`up`, `down`, `obutton`, `xbutton`), keywords, names defined in the cart and
+its includes, table fields after `.` and `:`, file names after `#include`,
+and snippets.
+
+Completion plugins: blink.cmp works as is; nvim-cmp needs cmp-nvim-lsp. On
+Neovim 0.11 without a completion plugin, the built-in LSP completion is
+enabled with auto-trigger (`completion.native`).
+
+The snippets live in `snippets/pico8.json` (VSCode format) with a
+`package.json`, so snippet engines that load VSCode snippets from the
+runtimepath (LuaSnip's `from_vscode` loader, vim-vsnip) can use them too. Set
+`completion.snippets = false` to avoid duplicates.
+
+==============================================================================
+5. DIAGNOSTICS                                             *pico8-diagnostics*
+
+Diagnostics use the source "pico8" and these codes:
+
+  syntax            syntax error (the first one, like PICO-8)
+  token-limit       more than 8192 tokens (including #include files)
+  char-limit        more than 65535 characters
+  include           missing #include file or an error inside it
+  undefined-global  a global that is read but never assigned
+  stdlib            Lua standard library that PICO-8 doesn't have
+  arg-count         too many arguments for an API function
+  unused            unused locals, local functions, last parameters
+
+Globals defined in a way the plugin can't see can be declared with a comment
+(compatible with shrinko8): >lua
+
+  --lint: my_global, other_global
+<
+==============================================================================
+6. COMMANDS                                                   *pico8-commands*
+
+:Pico8Tokens                                                    *:Pico8Tokens*
+        Report token and character counts, per tab, per #include file and
+        the ten most expensive functions.
+:{range}Pico8Tokens
+        Tokens and characters of the lines in {range}.
+
+:Pico8Run                                                          *:Pico8Run*
+        Save the buffer and run its cart in PICO-8 (`pico8 -run cart.p8`).
+        For a .lua file the cart that #includes it is run.
+
+:Pico8Docs [{name}]                                               *:Pico8Docs*
+        Show the documentation of API function {name} (or of the word under
+        the cursor) in a floating window. `:Pico8Docs stat` lists the stat()
+        indices, `:Pico8Docs memory` the memory map. Without a name and
+        without a known word under the cursor, open an API cheat sheet.
+
+:Pico8Toggle [{what}]                                           *:Pico8Toggle*
+        Toggle `virtual_text` (default), `function_hints` or `diagnostics`.
+
+==============================================================================
+7. LUA API                                                         *pico8-api*
+
+require("pico8").setup({opts})                                 *pico8.setup()*
+        Configure the plugin, see |pico8-setup|.
+
+require("pico8").statusline([{bufnr}])                    *pico8.statusline()*
+        "1234/8192 tokens 15%" for PICO-8 buffers, "" otherwise.
+
+require("pico8").stats([{bufnr}])                              *pico8.stats()*
+        Table with `tokens`, `chars`, `total_tokens`, `total_chars`,
+        `token_limit`, `char_limit`, `tabs` (tokens per tab) and `project`
+        (path of the including cart, for .lua files).
+
+==============================================================================
+8. HIGHLIGHT GROUPS                                         *pico8-highlights*
+
+Pico8Tokens           token / char counts (links to Comment)
+Pico8TokensWarn       counts at `tokens.warn_ratio` of a limit or more
+Pico8TokensError      counts over a limit
+Pico8TabTokens        token count of a code tab
+Pico8FunctionTokens   token count of a function
+pico8Px0 .. pico8Pxv  __gfx__ / __label__ pixels in the PICO-8 palette
+
+Syntax groups start with `pico8`, e.g. pico8Builtin, pico8Callback,
+pico8Button, pico8P8scii, pico8Section, pico8TabSeparator.
+
+ vim:tw=78:ts=8:ft=help:norl:

@@ -1,0 +1,448 @@
+{
+  "_init": {
+    "prefix": "_init",
+    "body": [
+      "function _init()",
+      "\t$0",
+      "end"
+    ],
+    "description": "_init(): called once on startup"
+  },
+  "_update": {
+    "prefix": "_update",
+    "body": [
+      "function _update()",
+      "\t$0",
+      "end"
+    ],
+    "description": "_update(): called 30 times per second"
+  },
+  "_update60": {
+    "prefix": "_update60",
+    "body": [
+      "function _update60()",
+      "\t$0",
+      "end"
+    ],
+    "description": "_update60(): 60fps update"
+  },
+  "_draw": {
+    "prefix": "_draw",
+    "body": [
+      "function _draw()",
+      "\tcls(${1:0})",
+      "\t$0",
+      "end"
+    ],
+    "description": "_draw(): called once per frame"
+  },
+  "game loop": {
+    "prefix": "game",
+    "body": [
+      "function _init()",
+      "\t$1",
+      "end",
+      "",
+      "function _update()",
+      "\t$2",
+      "end",
+      "",
+      "function _draw()",
+      "\tcls(${3:0})",
+      "\t$0",
+      "end"
+    ],
+    "description": "_init / _update / _draw skeleton"
+  },
+  "cart": {
+    "prefix": "cart",
+    "body": [
+      "pico-8 cartridge // http://www.pico-8.com",
+      "version 43",
+      "__lua__",
+      "-- ${1:title}",
+      "-- by ${2:author}",
+      "",
+      "function _init()",
+      "\t$3",
+      "end",
+      "",
+      "function _update()",
+      "\t$4",
+      "end",
+      "",
+      "function _draw()",
+      "\tcls()",
+      "\t$0",
+      "end"
+    ],
+    "description": "new .p8 cartridge (PICO-8 0.2.7, version 43)"
+  },
+  "function": {
+    "prefix": "fn",
+    "body": [
+      "function ${1:name}(${2})",
+      "\t$0",
+      "end"
+    ],
+    "description": "function definition"
+  },
+  "local function": {
+    "prefix": "lfn",
+    "body": [
+      "local function ${1:name}(${2})",
+      "\t$0",
+      "end"
+    ],
+    "description": "local function"
+  },
+  "anonymous function": {
+    "prefix": "afn",
+    "body": [
+      "function(${1}) $0 end"
+    ],
+    "description": "inline anonymous function"
+  },
+  "method": {
+    "prefix": "method",
+    "body": [
+      "function ${1:obj}:${2:name}(${3})",
+      "\t$0",
+      "end"
+    ],
+    "description": "method (self)"
+  },
+  "if": {
+    "prefix": "if",
+    "body": [
+      "if ${1:cond} then",
+      "\t$0",
+      "end"
+    ],
+    "description": "if ... then ... end"
+  },
+  "if else": {
+    "prefix": "ife",
+    "body": [
+      "if ${1:cond} then",
+      "\t$2",
+      "else",
+      "\t$0",
+      "end"
+    ],
+    "description": "if ... else ... end"
+  },
+  "if shorthand": {
+    "prefix": "ifs",
+    "body": [
+      "if (${1:cond}) $0"
+    ],
+    "description": "PICO-8 shorthand: if (cond) statement"
+  },
+  "elseif": {
+    "prefix": "elif",
+    "body": [
+      "elseif ${1:cond} then",
+      "\t$0"
+    ],
+    "description": "elseif branch"
+  },
+  "for": {
+    "prefix": "for",
+    "body": [
+      "for ${1:i}=${2:1},${3:10} do",
+      "\t$0",
+      "end"
+    ],
+    "description": "numeric for loop"
+  },
+  "for all": {
+    "prefix": "forall",
+    "body": [
+      "for ${1:o} in all(${2:t}) do",
+      "\t$0",
+      "end"
+    ],
+    "description": "for o in all(t)"
+  },
+  "for pairs": {
+    "prefix": "forp",
+    "body": [
+      "for ${1:k},${2:v} in pairs(${3:t}) do",
+      "\t$0",
+      "end"
+    ],
+    "description": "for k,v in pairs(t)"
+  },
+  "for index": {
+    "prefix": "fori",
+    "body": [
+      "for ${1:i}=1,#${2:t} do",
+      "\tlocal ${3:o}=$2[$1]",
+      "\t$0",
+      "end"
+    ],
+    "description": "loop over array indexes"
+  },
+  "while": {
+    "prefix": "while",
+    "body": [
+      "while ${1:cond} do",
+      "\t$0",
+      "end"
+    ],
+    "description": "while loop"
+  },
+  "repeat": {
+    "prefix": "repeat",
+    "body": [
+      "repeat",
+      "\t$0",
+      "until ${1:cond}"
+    ],
+    "description": "repeat ... until"
+  },
+  "foreach": {
+    "prefix": "foreach",
+    "body": [
+      "foreach(${1:t}, function(${2:o})",
+      "\t$0",
+      "end)"
+    ],
+    "description": "foreach(t, function(o) ... end)"
+  },
+  "move": {
+    "prefix": "move",
+    "body": [
+      "if (btn(⬅️)) ${1:x}-=${3:1}",
+      "if (btn(➡️)) $1+=$3",
+      "if (btn(⬆️)) ${2:y}-=$3",
+      "if (btn(⬇️)) $2+=$3"
+    ],
+    "description": "4-way movement with the d-pad"
+  },
+  "btnp": {
+    "prefix": "btnp",
+    "body": [
+      "if btnp(${1|❎,🅾️,⬅️,➡️,⬆️,⬇️|}) then",
+      "\t$0",
+      "end"
+    ],
+    "description": "react to a button press"
+  },
+  "class": {
+    "prefix": "class",
+    "body": [
+      "${1:obj}={}",
+      "$1.__index=$1",
+      "",
+      "function $1:new(${2:o})",
+      "\t$2=$2 or {}",
+      "\treturn setmetatable($2,$1)",
+      "end",
+      "",
+      "function $1:update()",
+      "\t$0",
+      "end",
+      "",
+      "function $1:draw()",
+      "end"
+    ],
+    "description": "class with metatable inheritance"
+  },
+  "coroutine": {
+    "prefix": "cocreate",
+    "body": [
+      "${1:co}=cocreate(function()",
+      "\t$0",
+      "\tyield()",
+      "end)"
+    ],
+    "description": "create a coroutine"
+  },
+  "coresume": {
+    "prefix": "coresume",
+    "body": [
+      "if ${1:co} and costatus($1)!=\"dead\" then",
+      "\tassert(coresume($1))",
+      "else",
+      "\t$1=nil",
+      "end"
+    ],
+    "description": "resume a coroutine until it is dead"
+  },
+  "wait": {
+    "prefix": "wait",
+    "body": [
+      "for i=1,${1:30} do yield() end"
+    ],
+    "description": "wait N frames inside a coroutine"
+  },
+  "menuitem": {
+    "prefix": "menuitem",
+    "body": [
+      "menuitem(${1:1}, \"${2:label}\", function(b)",
+      "\t$0",
+      "end)"
+    ],
+    "description": "pause menu item"
+  },
+  "cartdata": {
+    "prefix": "cartdata",
+    "body": [
+      "cartdata(\"${1:author_game}\")",
+      "${2:hiscore}=dget(${3:0})"
+    ],
+    "description": "open persistent cart data"
+  },
+  "outline": {
+    "prefix": "outline",
+    "body": [
+      "print(\"\\\\^o${2:0}ff${1:text}\", ${3:x}, ${4:y}, ${5:7})"
+    ],
+    "description": "print outlined text (P8SCII \\^o, new in 0.2.7)"
+  },
+  "underline": {
+    "prefix": "underline",
+    "body": [
+      "print(\"\\\\^u${1:text}\", ${2:x}, ${3:y}, ${4:7})"
+    ],
+    "description": "print underlined text (P8SCII \\^u, new in 0.2.7)"
+  },
+  "print centered": {
+    "prefix": "printc",
+    "body": [
+      "print(${1:s}, 64-#$1*2, ${2:y}, ${3:7})"
+    ],
+    "description": "print a string horizontally centered"
+  },
+  "collision": {
+    "prefix": "aabb",
+    "body": [
+      "function ${1:collide}(a,b)",
+      "\treturn a.x<b.x+b.w and b.x<a.x+a.w",
+      "\t\tand a.y<b.y+b.h and b.y<a.y+a.h",
+      "end"
+    ],
+    "description": "axis aligned bounding box collision"
+  },
+  "distance": {
+    "prefix": "dist",
+    "body": [
+      "function ${1:dist}(x1,y1,x2,y2)",
+      "\t-- scaled to avoid fixed point overflow",
+      "\tlocal dx,dy=(x2-x1)/64,(y2-y1)/64",
+      "\treturn sqrt(dx*dx+dy*dy)*64",
+      "end"
+    ],
+    "description": "overflow-safe distance between two points"
+  },
+  "lerp": {
+    "prefix": "lerp",
+    "body": [
+      "function lerp(a,b,t)",
+      "\treturn a+(b-a)*t",
+      "end"
+    ],
+    "description": "linear interpolation"
+  },
+  "animation": {
+    "prefix": "anim",
+    "body": [
+      "spr(${1:base}+flr(t()*${2:8})%${3:4}, ${4:x}, ${5:y})"
+    ],
+    "description": "cycle through N sprite frames"
+  },
+  "screen shake": {
+    "prefix": "shake",
+    "body": [
+      "if ${1:shake}>0 then",
+      "\tcamera(rnd($1)-$1/2, rnd($1)-$1/2)",
+      "\t$1*=0.9",
+      "\tif ($1<0.5) $1=0",
+      "else",
+      "\tcamera()",
+      "end"
+    ],
+    "description": "decaying screen shake"
+  },
+  "state machine": {
+    "prefix": "state",
+    "body": [
+      "function _init()",
+      "\t${1:menu}_init()",
+      "end",
+      "",
+      "function _update() _upd() end",
+      "function _draw() _drw() end",
+      "",
+      "function $1_init()",
+      "\t_upd,_drw=$1_update,$1_draw",
+      "end",
+      "",
+      "function $1_update()",
+      "\t$0",
+      "end",
+      "",
+      "function $1_draw()",
+      "\tcls()",
+      "end"
+    ],
+    "description": "scene / state machine via function references"
+  },
+  "particles": {
+    "prefix": "particles",
+    "body": [
+      "${1:parts}={}",
+      "",
+      "function spawn_part(x,y)",
+      "\tadd($1,{x=x,y=y,dx=rnd(2)-1,dy=rnd(2)-1,life=${2:20}})",
+      "end",
+      "",
+      "function update_parts()",
+      "\tfor p in all($1) do",
+      "\t\tp.x+=p.dx p.y+=p.dy p.life-=1",
+      "\t\tif (p.life<0) del($1,p)",
+      "\tend",
+      "end",
+      "",
+      "function draw_parts()",
+      "\tfor p in all($1) do pset(p.x,p.y,${3:7}) end",
+      "end"
+    ],
+    "description": "minimal particle system"
+  },
+  "mouse": {
+    "prefix": "mouse",
+    "body": [
+      "poke(0x5f2d,1) -- enable devkit mouse/keyboard",
+      "local ${1:mx},${2:my},${3:mb}=stat(32),stat(33),stat(34)"
+    ],
+    "description": "read the mouse (devkit mode)"
+  },
+  "fillp": {
+    "prefix": "fillp",
+    "body": [
+      "fillp(${1|▒,░,█,▤,▥,★,♥|})",
+      "$0",
+      "fillp()"
+    ],
+    "description": "draw with a glyph fill pattern"
+  },
+  "tab": {
+    "prefix": "tab",
+    "body": [
+      "-->8",
+      "-- ${1:name}",
+      "$0"
+    ],
+    "description": "new code tab (-->8)"
+  },
+  "include": {
+    "prefix": "include",
+    "body": [
+      "#include ${1:file}.lua"
+    ],
+    "description": "#include another file"
+  }
+}
