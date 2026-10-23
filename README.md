@@ -1,8 +1,8 @@
 # pico8.nvim
 
 [PICO-8](https://www.lexaloffle.com/pico-8.php) **0.2.7** support for Neovim:
-token count, completion, snippets, syntax highlighting and diagnostics.
-Pure Lua, no external programs.
+token count, completion, parameter name hints, snippets, syntax highlighting
+and diagnostics. Pure Lua, no external programs.
 
 ![pico8.nvim](doc/screenshot.png)
 
@@ -24,6 +24,10 @@ Pure Lua, no external programs.
   - button glyphs by name: `left` → `⬅️`, `xbutton` → `❎`
   - your own functions and variables, also from `#include`d files, and table fields after `.` / `:`
   - file names after `#include `
+- **Parameter name hints** in calls of built-in functions (inlay hints):
+  `rectfill(x0: 12, y0: 20, x1: 115, y1: 105, col: 0)`. Hints are left out where they add
+  nothing (`spr(n: 1, p.x, p.y)`, `btn(⬅️)`, `flr(x)`, `mid(a, b, c)`); optionally also for your
+  own functions. Toggle with `:Pico8Toggle inlay_hints`.
 - **Snippets** for language constructs and single API calls: game loop, cart skeleton, callbacks,
   `if`/`for`/`while` variants, `for o in all(t)`, `btnp`, `menuitem`, `cartdata`, coroutines,
   `fillp`, outlined (`\^o`) and underlined (`\^u`) text (new in 0.2.7), `#include`, `-->8` …
@@ -94,6 +98,11 @@ require("pico8").setup({
   run_args = {},           -- e.g. { "-windowed", "1" }
 
   lsp = { enabled = true }, -- built-in language server "pico8"
+
+  inlay_hints = {
+    enabled = true,           -- parameter names: rectfill(x0: 12, y0: 20, ...)
+    user_functions = false,   -- also in calls of your own functions
+  },
 
   completion = {
     call_snippets = true,  -- insert required arguments as placeholders
@@ -181,7 +190,7 @@ local s = require("pico8").stats() -- { tokens, total_tokens, chars, total_chars
 | `:'<,'>Pico8Tokens` | tokens of the selected lines |
 | `:Pico8Run` | save and run the cart in PICO-8 (for a `.lua` file: the cart that includes it) |
 | `:Pico8Docs [name]` | API documentation in a float; without an argument a cheat sheet. Also `:Pico8Docs stat` / `memory` |
-| `:Pico8Toggle [virtual_text\|function_hints\|diagnostics]` | toggle what is shown |
+| `:Pico8Toggle [virtual_text\|function_hints\|inlay_hints\|diagnostics]` | toggle what is shown |
 
 ## Diagnostics
 

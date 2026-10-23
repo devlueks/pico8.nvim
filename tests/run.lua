@@ -597,6 +597,65 @@ test("lsp: native completion setup", function()
   vim.cmd("bwipeout!")
 end)
 
+test("inlay hints: parameter names", function()
+  local inlay = require("pico8.inlay")
+  local cfg = require("pico8.config").get().inlay_hints
+  local buf = vim.api.nvim_create_buf(true, false)
+  vim.api.nvim_buf_set_name(buf, fixtures .. "/hints.p8")
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+    "rectfill(12, 20, 115, 105, 0)",
+    "spr(1, p.x, p.y, 2, 2, true) x=flr(3.5)",
+    "print(\"hi\", 8) pal({[12]=9}, 1)",
+    "foreach(t, function(o) local a, b = 1, 2 circ(o.x, o.y, 3) end)",
+    "function mine(n, x) end mine(1, 2)",
+    "circfill(64, 64,",
+    "cls()",
+    "if (btn(⬅️)) x=mid(0, x, 120)",
+  })
+  local function labels(line)
+    local out = {}
+    for _, h in ipairs(inlay.hints(buf, line, line)) do
+      out[#out + 1] = h.label
+    end
+    return table.concat(out, " ")
+  end
+  eq(labels(0), "x0: y0: x1: y1: col:")
+  eq(labels(1), "n: w: h: flip_x:", "p.x / p.y and flr(x) need no hint")
+  eq(labels(2), "str: col: tbl: p:", "overloaded signatures")
+  eq(labels(3), "tbl: func: r:")
+  eq(labels(4), "", "own functions are off by default")
+  eq(labels(5), "x: y:", "unfinished call")
+  eq(labels(6), "")
+  eq(labels(7), "", "glyph argument, one-letter parameters")
+  cfg.user_functions = true
+  eq(labels(4), "n: x:")
+  cfg.user_functions = false
+  cfg.enabled = false
+  eq(labels(0), "")
+  cfg.enabled = true
+  vim.api.nvim_buf_delete(buf, { force = true })
+end)
+
+test("inlay hints: shown by Neovim", function()
+  local buf = open("syntax.p8")
+  vim.wait(1500, function()
+    return #vim.lsp.inlay_hint.get({ bufnr = buf }) > 0
+  end)
+  truthy(vim.lsp.inlay_hint.is_enabled({ bufnr = buf }), "enabled on attach")
+  local found = false
+  for _, h in ipairs(vim.lsp.inlay_hint.get({ bufnr = buf })) do
+    if h.inlay_hint.label == "x:" and h.inlay_hint.position.line == 29 then
+      found = true -- rrectfill(x: 10, ...)
+    end
+  end
+  truthy(found, "rrectfill hint")
+  vim.cmd("Pico8Toggle inlay_hints")
+  eq(vim.lsp.inlay_hint.is_enabled({ bufnr = buf }), false)
+  vim.cmd("Pico8Toggle inlay_hints")
+  eq(vim.lsp.inlay_hint.is_enabled({ bufnr = buf }), true)
+  vim.cmd("bwipeout!")
+end)
+
 -- report -------------------------------------------------------------------------------
 
 print(("\n%d passed, %d failed"):format(passed, #failed))

@@ -172,6 +172,9 @@ function M.setup(opts)
   require("pico8.lsp").enable(config.get().lsp.enabled)
   for b in pairs(attached) do
     if vim.api.nvim_buf_is_valid(b) then
+      if #vim.lsp.get_clients({ bufnr = b, name = "pico8" }) > 0 then
+        require("pico8.lsp").set_inlay_hints(b, config.get().inlay_hints.enabled)
+      end
       M.attach(b)
       if not config.get().diagnostics.enabled then
         vim.diagnostic.reset(require("pico8.diagnostics").ns, b)

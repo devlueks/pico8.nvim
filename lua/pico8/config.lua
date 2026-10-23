@@ -28,6 +28,14 @@ M.defaults = {
     native = "auto",
   },
 
+  -- parameter names in calls of built-in functions (LSP inlay hints):
+  --   rectfill(x0: 12, y0: 20, x1: 115, y1: 105, col: 0)
+  inlay_hints = {
+    enabled = true,
+    -- also in calls of your own functions
+    user_functions = false,
+  },
+
   diagnostics = {
     enabled = true,
     debounce = 250, -- ms

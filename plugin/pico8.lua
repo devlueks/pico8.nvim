@@ -55,7 +55,15 @@ end, {
 vim.api.nvim_create_user_command("Pico8Toggle", function(o)
   local config = require("pico8.config").get()
   local what = o.args
-  if what == "diagnostics" then
+  if what == "inlay_hints" then
+    config.inlay_hints.enabled = not config.inlay_hints.enabled
+    for _, b in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_is_loaded(b) and vim.bo[b].filetype == "pico8" then
+        require("pico8.lsp").set_inlay_hints(b, config.inlay_hints.enabled)
+      end
+    end
+    return
+  elseif what == "diagnostics" then
     config.diagnostics.enabled = not config.diagnostics.enabled
   elseif what == "function_hints" then
     config.tokens.function_hints = not config.tokens.function_hints
@@ -73,7 +81,7 @@ vim.api.nvim_create_user_command("Pico8Toggle", function(o)
 end, {
   nargs = "?",
   complete = function()
-    return { "virtual_text", "function_hints", "diagnostics" }
+    return { "virtual_text", "function_hints", "inlay_hints", "diagnostics" }
   end,
-  desc = "PICO-8: toggle token virtual text, function token hints or diagnostics",
+  desc = "PICO-8: toggle token virtual text, function token hints, parameter name hints or diagnostics",
 })

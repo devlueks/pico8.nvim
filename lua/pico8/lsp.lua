@@ -49,7 +49,9 @@ function M.cmd(dispatchers)
     return {
       capabilities = {
         positionEncoding = "utf-8",
-        textDocumentSync = { openClose = false, change = 0 },
+        -- the server reads buffers directly; the notifications only tell
+        -- Neovim when to refresh inlay hints (didOpen / didChange)
+        textDocumentSync = { openClose = true, change = 2 },
         completionProvider = { triggerCharacters = { ".", ":" }, resolveProvider = false },
         hoverProvider = true,
         signatureHelpProvider = { triggerCharacters = { "(", "," }, retriggerCharacters = { "," } },
@@ -58,6 +60,7 @@ function M.cmd(dispatchers)
         documentHighlightProvider = true,
         documentSymbolProvider = true,
         renameProvider = true,
+        inlayHintProvider = true,
       },
       serverInfo = { name = "pico8.nvim", version = require("pico8.api").VERSION },
     }
@@ -102,6 +105,13 @@ function M.cmd(dispatchers)
 
   handlers["textDocument/documentSymbol"] = function(params)
     return require("pico8.symbols").document_symbols(bufnr_of(params))
+  end
+
+  handlers["textDocument/inlayHint"] = function(params)
+    local range = params.range or {}
+    local first = range.start and range.start.line or 0
+    local last = range["end"] and range["end"].line or math.huge
+    return require("pico8.inlay").hints(bufnr_of(params), first, last)
   end
 
   handlers["textDocument/rename"] = function(params)
@@ -207,6 +217,9 @@ end
 
 --- Called on LspAttach for the pico8 client.
 function M.on_attach(client, bufnr)
+  if config.get().inlay_hints.enabled then
+    M.set_inlay_hints(bufnr, true)
+  end
   if not vim.lsp.completion then
     return
   end
@@ -232,6 +245,13 @@ function M.on_attach(client, bufnr)
   end
   -- also makes <C-y> on items from 'omnifunc' expand snippets
   vim.lsp.completion.enable(true, client.id, bufnr, { autotrigger = autotrigger })
+end
+
+--- Show or hide parameter name hints in a buffer.
+function M.set_inlay_hints(bufnr, enable)
+  if vim.lsp.inlay_hint then
+    vim.lsp.inlay_hint.enable(enable, { bufnr = bufnr })
+  end
 end
 
 --- Register the server with vim.lsp.config(); users can override any field
