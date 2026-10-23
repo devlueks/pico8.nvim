@@ -3,10 +3,26 @@ if vim.g.loaded_pico8 then
 end
 vim.g.loaded_pico8 = true
 
-if vim.fn.has("nvim-0.10") == 0 then
-  vim.notify_once("pico8.nvim requires Neovim 0.10 or newer", vim.log.levels.ERROR)
+if vim.fn.has("nvim-0.11") == 0 then
+  vim.notify_once("pico8.nvim requires Neovim 0.11 or newer (0.12 recommended)", vim.log.levels.ERROR)
   return
 end
+
+-- Built-in language server (completion, hover, signature help, symbols, ...):
+-- registered like any other server, so `vim.lsp.config("pico8", {...})`,
+-- `vim.lsp.enable("pico8", false)`, :checkhealth vim.lsp and :lsp work.
+require("pico8.lsp").register()
+require("pico8.lsp").enable(require("pico8.config").get().lsp.enabled)
+
+vim.api.nvim_create_autocmd("LspAttach", {
+  group = vim.api.nvim_create_augroup("pico8_lsp", { clear = true }),
+  callback = function(ev)
+    local client = vim.lsp.get_client_by_id(ev.data.client_id)
+    if client and client.name == "pico8" then
+      require("pico8.lsp").on_attach(client, ev.buf)
+    end
+  end,
+})
 
 local function cmds()
   return require("pico8.commands")

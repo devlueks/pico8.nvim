@@ -8,8 +8,10 @@ M.defaults = {
   -- extra arguments for :Pico8Run, e.g. { "-windowed", "1" }
   run_args = {},
 
-  -- Built-in (in-process) language server: completion, hover,
+  -- Built-in (in-process) language server "pico8": completion, hover,
   -- signature help, document symbols, go to definition, references, rename.
+  -- Started with vim.lsp.enable("pico8"); fields can be overridden with
+  -- vim.lsp.config("pico8", { ... }).
   lsp = {
     enabled = true,
   },
@@ -19,8 +21,10 @@ M.defaults = {
     call_snippets = true,
     -- offer the bundled snippets (_init, _update, game loop, ...) in completion
     snippets = true,
-    -- Neovim 0.11+ built-in completion with auto-trigger when neither
-    -- nvim-cmp nor blink.cmp is installed: "auto" | true | false
+    -- Neovim's built-in completion while typing, used when no completion
+    -- plugin (blink.cmp, nvim-cmp, mini.completion) is installed:
+    -- "auto" | true | false. With Neovim 0.12's 'autocomplete' option on,
+    -- the server is added to 'complete' instead.
     native = "auto",
   },
 
@@ -47,8 +51,11 @@ M.defaults = {
   },
 
   highlight = {
-    -- show __gfx__ / __label__ data in the PICO-8 palette
+    -- show __gfx__ / __label__ data as pixels in the PICO-8 palette
     gfx_colors = true,
+    -- color of black (0) pixels: "auto" uses #000000, or a dark gray when
+    -- the background is too dark to tell black pixels apart; or a "#rrggbb"
+    black = "auto",
   },
 
   -- insert a cart skeleton into new, empty .p8 files

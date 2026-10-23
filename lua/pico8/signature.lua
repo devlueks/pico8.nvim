@@ -110,7 +110,7 @@ function M.get(bufnr, line, col)
         sigs[#sigs + 1] = {
           label = s.label,
           parameters = params,
-          documentation = { kind = "markdown", value = e.description },
+          documentation = { kind = "plaintext", value = e.description },
           vararg = s.vararg,
         }
       end

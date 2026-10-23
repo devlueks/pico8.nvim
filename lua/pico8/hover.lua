@@ -1,6 +1,7 @@
 -- Hover documentation: API functions, callbacks, glyphs, user functions
 -- (with their token cost), locals, numbers (fixed point / hex / memory
 -- addresses), stat() indices and PICO-8 operators.
+-- All text is plain text (no markdown).
 
 local analysis = require("pico8.analysis")
 local api = require("pico8.api")
@@ -10,8 +11,8 @@ local lexer = require("pico8.lexer")
 local M = {}
 
 local OPERATORS = {
-  ["\\"] = "integer division: `a\\b` == `flr(a/b)`",
-  ["\\="] = "integer division assignment: `a\\=b`",
+  ["\\"] = "integer division: a\\b == flr(a/b)",
+  ["\\="] = "integer division assignment: a\\=b",
   ["^^"] = "bitwise xor (bxor)",
   ["^^="] = "bitwise xor assignment",
   ["&"] = "bitwise and (band)",
@@ -22,14 +23,15 @@ local OPERATORS = {
   [">>>"] = "logical shift right (lshr)",
   ["<<>"] = "rotate left (rotl)",
   [">><"] = "rotate right (rotr)",
-  ["@"] = "peek operator: `@addr` == `peek(addr)`",
-  ["$"] = "peek4 operator: `$addr` == `peek4(addr)`",
-  ["!="] = "not equal (same as `~=`)",
-  ["?"] = "print shorthand: `?\"hi\", x, y, col` == `print(\"hi\", x, y, col)`",
-  ["..="] = "concatenation assignment: `s..=\"x\"`",
+  ["@"] = "peek operator: @addr == peek(addr)",
+  ["$"] = "peek4 operator: $addr == peek4(addr)",
+  ["!="] = "not equal (same as ~=)",
+  ["?"] = "print shorthand: ?\"hi\",x,y,col == print(\"hi\",x,y,col)",
+  ["..="] = "concatenation assignment: s..=\"x\"",
 }
 
 --- Parse a PICO-8 number literal into its 16.16 fixed point value.
+---@return number value, integer raw 32-bit pattern
 function M.parse_number(text)
   local s = text:lower()
   local base, digits
@@ -77,33 +79,32 @@ local function region_of(addr)
   return best, best_addr
 end
 
-function M.number_markdown(text)
+function M.number_text(text)
   local v, raw = M.parse_number(text)
   local int = math.floor(raw / 65536)
   local frac = raw % 65536
   local lines = {
-    ("`%s` = **%s**"):format(text, fmt_dec(v)),
-    "",
-    ("hex `0x%04x.%04x`"):format(int, frac),
+    ("%s = %s"):format(text, fmt_dec(v)),
+    ("hex 0x%04x.%04x"):format(int, frac),
   }
   if frac == 0 and int < 0x10000 then
     local bits = {}
     for b = 15, 0, -1 do
       bits[#bits + 1] = math.floor(int / 2 ^ b) % 2
     end
-    lines[#lines + 1] = "bin `0b" .. table.concat(bits) .. "`"
+    lines[#lines + 1] = "bin 0b" .. table.concat(bits)
   end
   if frac == 0 and v >= 0 then
     local addr = math.floor(v)
     local doc = api.MEMORY[addr]
     if doc then
       lines[#lines + 1] = ""
-      lines[#lines + 1] = ("**memory 0x%04x**: %s"):format(addr, doc)
+      lines[#lines + 1] = ("memory 0x%04x: %s"):format(addr, doc)
     elseif addr >= 0x5f00 and addr < 0x10000 then
       local r, ra = region_of(addr)
       if r then
         lines[#lines + 1] = ""
-        lines[#lines + 1] = ("**memory 0x%04x** (0x%04x + %d): %s"):format(addr, ra, addr - ra, r)
+        lines[#lines + 1] = ("memory 0x%04x (0x%04x + %d): %s"):format(addr, ra, addr - ra, r)
       end
     end
   end
@@ -126,41 +127,29 @@ local function doc_comment(lines, l)
   return #out > 0 and table.concat(out, "\n") or nil
 end
 
-local function function_markdown(fn, lines, where)
+local function function_text(fn, lines, where)
   local params = table.concat(fn.params, ", ")
   if fn.vararg then
     params = params == "" and "..." or (params .. ", ...")
   end
   local head = fn.kind == "local" and "local function " or "function "
-  local out = { "```lua", head .. (fn.name or "?") .. "(" .. params .. ")", "```" }
+  local out = { head .. (fn.name or "?") .. "(" .. params .. ")" }
   local doc = lines and doc_comment(lines, fn.line)
   if doc then
-    out[#out + 1] = doc
     out[#out + 1] = ""
+    out[#out + 1] = doc
   end
+  out[#out + 1] = ""
   local meta = {}
   if fn.tokens then
-    meta[#meta + 1] = ("**%d tokens**"):format(fn.tokens)
+    meta[#meta + 1] = ("%d tokens"):format(fn.tokens)
   end
   meta[#meta + 1] = ("line %d%s"):format(fn.line + 1, where and (" of " .. where) or "")
-  out[#out + 1] = table.concat(meta, " · ")
+  out[#out + 1] = table.concat(meta, ", ")
   return table.concat(out, "\n")
 end
 
-local function find_function(parse, name, tok)
-  for _, fn in ipairs(parse.functions) do
-    if fn.tok == tok then
-      return fn
-    end
-  end
-  for _, fn in ipairs(parse.functions) do
-    if fn.name == name then
-      return fn
-    end
-  end
-end
-
---- Hover markdown for (line, col), or nil.
+--- Hover (LSP Hover with plain text contents) for (line, col), or nil.
 function M.get(bufnr, line, col)
   local res = analysis.get(bufnr)
   local toks = res.lex.tokens
@@ -174,7 +163,7 @@ function M.get(bufnr, line, col)
     ["end"] = { line = t.eline, character = t.ecol },
   }
   local function ret(value)
-    return { contents = { kind = "markdown", value = value }, range = range }
+    return { contents = { kind = "plaintext", value = value }, range = range }
   end
   local parse = res.parse
 
@@ -184,10 +173,10 @@ function M.get(bufnr, line, col)
       local v = M.parse_number(t.value)
       local doc = api.STAT[v]
       if doc then
-        return ret(("**stat(%s)**: %s"):format(fmt_dec(v), doc))
+        return ret(("stat(%s): %s"):format(fmt_dec(v), doc))
       end
     end
-    return ret(M.number_markdown(t.value))
+    return ret(M.number_text(t.value))
   end
 
   if t.type == "op" then
@@ -196,10 +185,10 @@ function M.get(bufnr, line, col)
       local prev = toks[idx - 1]
       local unary = not prev or not (prev.type == "name" or prev.type == "number" or prev.type == "string"
         or (prev.type == "op" and (prev.value == ")" or prev.value == "]" or prev.value == "}")))
-      doc = unary and "peek2 operator: `%addr` == `peek2(addr)`" or "modulo"
+      doc = unary and "peek2 operator: %addr == peek2(addr)" or "modulo"
     end
     if doc then
-      return ret(("`%s` %s"):format(t.value, doc))
+      return ret(("%s  %s"):format(t.value, doc))
     end
     return nil
   end
@@ -207,7 +196,7 @@ function M.get(bufnr, line, col)
   if t.type == "keyword" and t.value == "function" then
     for _, fn in ipairs(parse.functions) do
       if fn.s == idx then
-        return ret(function_markdown(fn, res.lines))
+        return ret(function_text(fn, res.lines))
       end
     end
     return nil
@@ -222,13 +211,13 @@ function M.get(bufnr, line, col)
   local v = parse.refs[t]
   if v then
     if v.fn then
-      return ret(function_markdown(v.fn, res.lines))
+      return ret(function_text(v.fn, res.lines))
     end
     local what = ({ param = "parameter", ["for"] = "loop variable", self = "self", ["function"] = "local function" })[v.kind]
-      or "local"
-    local s = ("```lua\nlocal %s\n```\n%s"):format(name, what)
+      or "local variable"
+    local s = ("local %s\n\n%s"):format(name, what)
     if not v.tok.synthetic then
-      s = s .. (" · declared on line %d"):format(v.tok.line + 1)
+      s = s .. (", declared on line %d"):format(v.tok.line + 1)
     end
     return ret(s)
   end
@@ -238,7 +227,7 @@ function M.get(bufnr, line, col)
   if prev and prev.type == "op" and (prev.value == "." or prev.value == ":") then
     for _, fn in ipairs(parse.functions) do
       if fn.name and (fn.name:match("[.:]" .. vim.pesc(name) .. "$")) then
-        return ret(function_markdown(fn, res.lines))
+        return ret(function_text(fn, res.lines))
       end
     end
     return nil
@@ -246,9 +235,9 @@ function M.get(bufnr, line, col)
 
   local g = api.glyphs[name]
   if g then
-    local s = ("**%s** — %s"):format(name, g.doc)
+    local s = ("%s  %s"):format(name, g.doc)
     if g.value then
-      s = s .. ("\n\n`%s` == %d"):format(name, g.value)
+      s = s .. ("\n\n%s == %d"):format(name, g.value)
     end
     return ret(s)
   end
@@ -256,35 +245,35 @@ function M.get(bufnr, line, col)
   local ctx = analysis.context(bufnr)
   local own = parse.globals[name]
   if own and own.kind == "function" and own.fn then
-    local s = function_markdown(own.fn, res.lines)
+    local s = function_text(own.fn, res.lines)
     if api.CALLBACKS[name] then
       s = s .. "\n\n" .. api.CALLBACKS[name]
     elseif api.functions[name] then
-      s = s .. "\n\n*overrides the built-in " .. name .. "()*"
+      s = s .. "\n\nOverrides the built-in " .. name .. "()."
     end
     return ret(s)
   end
   local other = ctx.globals[name]
   if other and other.kind == "function" and other.fn then
-    return ret(function_markdown(other.fn, other.path and cart.file_lines(other.path), vim.fs.basename(other.path or "")))
+    return ret(function_text(other.fn, other.path and cart.file_lines(other.path), vim.fs.basename(other.path or "")))
   end
 
   if api.CALLBACKS[name] then
-    return ret(("```lua\nfunction %s()\n```\n%s"):format(name, api.CALLBACKS[name]))
+    return ret(("function %s()\n\n%s"):format(name, api.CALLBACKS[name]))
   end
   local e = api.functions[name]
   if e and not own and not other then
-    return ret(api.markdown(e))
+    return ret(api.doc_text(e))
   end
 
   local gv = own or other
   if gv then
-    local s = ("```lua\n%s\n```\nglobal"):format(name)
+    local s = ("global %s"):format(name)
     if gv.tok then
-      s = s .. (" · first assigned on line %d"):format(gv.tok.line + 1)
-    end
-    if other and other.path then
-      s = s .. " of " .. vim.fs.basename(other.path)
+      s = s .. ("\n\nfirst assigned on line %d"):format(gv.tok.line + 1)
+      if other and other.path then
+        s = s .. " of " .. vim.fs.basename(other.path)
+      end
     end
     return ret(s)
   end

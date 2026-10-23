@@ -20,7 +20,19 @@ files (`*.p8.lua`, filetype `pico8`). Everything runs inside Neovim: editor
 features are served by an in-process language server named "pico8", so every
 LSP client feature and completion plugin works without an external program.
 
-Requires Neovim 0.10 or newer.
+A `.p8` file does not need a `__lua__` section: without one, everything after
+the optional `pico-8 cartridge` / `version` header up to the first data
+section (`__gfx__`, ...) is code.
+
+The API covers the functions of the 0.2.7 manual's API reference that a cart
+can call; console commands such as `save` or `folder` are not included.
+Undocumented globals that exist at runtime (`ipairs`, `next`, `unpack`, ...)
+are not offered, but using them is not reported as an error.
+
+Documentation (hover, completion, signature help, |:Pico8Docs|) is plain
+text.
+
+Requires Neovim 0.11 or newer; 0.12 is recommended.
 
 ==============================================================================
 2. SETUP                                                         *pico8-setup*
@@ -51,12 +63,24 @@ Calling setup is optional. Defaults: >lua
       function_hints = false,
       warn_ratio = 0.9,
     },
-    highlight = { gfx_colors = true },
+    highlight = {
+      gfx_colors = true,     -- __gfx__ / __label__ as pixels
+      black = "auto",        -- color of black pixels, or "#rrggbb"
+    },
     template = true,         -- fill new, empty .p8 files with a cart skeleton
   })
 <
+The language server is registered with `vim.lsp.config("pico8", ...)` and
+started with `vim.lsp.enable("pico8")`. Override fields with your own
+|vim.lsp.config()| call; manage it with |:checkhealth| vim.lsp and, in Neovim
+0.12, |:lsp| (e.g. `:lsp restart pico8`).
+
 With `lsp.enabled = false` completion is available through 'omnifunc'
 (|i_CTRL-X_CTRL-O|), without hover and the other LSP features.
+
+`highlight.black`: black pixels (color 0) are drawn in #000000, unless the
+background is so dark (or transparent with 'background' dark) that they would
+be invisible; then a dark gray is used so every pixel shows as a block.
 
 ==============================================================================
 3. TOKEN COUNT                                                  *pico8-tokens*
@@ -83,9 +107,10 @@ for required parameters), callbacks, button glyphs (type `left`, `right`,
 its includes, table fields after `.` and `:`, file names after `#include`,
 and snippets.
 
-Completion plugins: blink.cmp works as is; nvim-cmp needs cmp-nvim-lsp. On
-Neovim 0.11 without a completion plugin, the built-in LSP completion is
-enabled with auto-trigger (`completion.native`).
+Completion plugins: blink.cmp works as is; nvim-cmp needs cmp-nvim-lsp.
+Without a completion plugin (`completion.native = "auto"`), Neovim's built-in
+LSP completion is triggered while typing. If Neovim 0.12's 'autocomplete' is
+on, the server is added to 'complete' ("o", via 'omnifunc') instead.
 
 The snippets live in `snippets/pico8.json` (VSCode format) with a
 `package.json`, so snippet engines that load VSCode snippets from the

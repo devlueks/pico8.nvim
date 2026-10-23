@@ -1,6 +1,7 @@
 -- The PICO-8 0.2.7 API: functions, callbacks, glyph constants, stat()
--- indices and notable memory addresses. Descriptions follow the official
--- PICO-8 0.2.7 manual.
+-- indices and notable memory addresses. Only functions from the API
+-- reference of the official 0.2.7 manual that can be called from a cart are
+-- listed (console commands like save, folder or reboot are not).
 
 local M = {}
 
@@ -9,8 +10,7 @@ M.VERSION = "0.2.7"
 -- { category, signature(s), description, extra }
 -- Signatures use the manual's notation: [x] is optional, ... is variadic.
 -- extra: params = { name = doc }, ret = doc, since = version,
---        deprecated = hint, check = false (don't check arg count),
---        hidden = true (undocumented: known, but not offered in completion)
+--        check = false (don't check the argument count)
 local DEFS = {
   -- System ------------------------------------------------------------------
   { "system", "load(filename, [breadcrumb], [param_str])",
@@ -41,9 +41,6 @@ local DEFS = {
   { "system", "extcmd(cmd_str, [p1, p2])",
     "Special system command: \"pause\", \"reset\", \"go_back\", \"label\", \"screen\", \"rec\", \"rec_frames\", \"video\", \"audio_rec\", \"audio_end\", \"shutdown\", \"folder\", \"set_filename\", \"set_title\". \"video\"/\"screen\": P1 = scale, P2 > 0 saves to the current folder.",
     { params = { cmd_str = "\"pause\" \"reset\" \"go_back\" \"label\" \"screen\" \"rec\" \"rec_frames\" \"video\" \"audio_rec\" \"audio_end\" \"shutdown\" \"folder\" \"set_filename\" \"set_title\"" } } },
-  { "system", "trace([message])",
-    "Returns a traceback of the current call stack as a string (debugging helper).",
-    { hidden = true, check = false } },
 
   -- Graphics ----------------------------------------------------------------
   { "graphics", { "clip(x, y, w, h, [clip_previous])", "clip()" },
@@ -122,12 +119,6 @@ local DEFS = {
     "Call FUNC with each item of TBL as its single argument: foreach(t, print)." },
   { "tables", "pairs(tbl)",
     "Iterator over all keys and values of TBL (any indexing scheme, unordered):\n\n    for k,v in pairs(t) do ... end" },
-  { "tables", "ipairs(tbl)",
-    "Iterator over the 1-based integer keys of TBL, stopping at the first nil." },
-  { "tables", "inext(tbl, [i])",
-    "Stateless iterator for ipairs-style loops: for i,v in inext,tbl do ... end" },
-  { "tables", "next(tbl, [key])",
-    "Returns the next key and value after KEY in TBL (Lua's next)." },
 
   -- Input -------------------------------------------------------------------
   { "input", "btn([b], [pl])",
@@ -156,8 +147,6 @@ local DEFS = {
   { "map", { "tline(x0, y0, x1, y1, mx, my, [mdx, mdy], [layers])", "tline(precision_bits)" },
     "Draw a textured line from X0, Y0 to X1, Y1, sampling colours from the map at MX, MY (in tiles), adding MDX, MDY (default 0.125, 0) per pixel. tline(16) sets the precision so that coordinates are in pixels.",
     { params = { mx = "map x in tiles", my = "map y in tiles", mdx = "delta x per pixel (default 0.125)", mdy = "delta y per pixel (default 0)" } } },
-  { "map", "mapdraw(tile_x, tile_y, [sx, sy], [tile_w, tile_h], [layers])",
-    "Deprecated alias of map().", { deprecated = "use map()", hidden = true } },
 
   -- Memory ------------------------------------------------------------------
   { "memory", "peek(addr, [n])",
@@ -233,7 +222,6 @@ local DEFS = {
   { "strings", "type(val)",
     "Returns the type of VAL as a string: \"number\", \"string\", \"boolean\", \"table\", \"function\", \"thread\" or \"nil\".",
     { ret = "string" } },
-  { "strings", "tostring(val)", "Lua's tostring (undocumented, prefer tostr).", { hidden = true } },
 
   -- Cartridge data ----------------------------------------------------------
   { "cartdata", "cartdata(id)",
@@ -254,8 +242,6 @@ local DEFS = {
   { "lua", "rawequal(tbl1, tbl2)", "Compare without invoking metamethods.", { ret = "boolean" } },
   { "lua", "rawlen(tbl)", "Length of TBL without invoking metamethods.", { ret = "number" } },
   { "lua", "select(index, ...)", "Returns all arguments after INDEX; select(\"#\", ...) returns the number of arguments." },
-  { "lua", "pack(...)", "Returns a table of the arguments, with the count in field n." , { ret = "table" } },
-  { "lua", "unpack(tbl, [i], [j])", "Returns TBL[I] .. TBL[J] as multiple values." },
   { "lua", "cocreate(f)", "Create a coroutine for function F.", { ret = "coroutine" } },
   { "lua", "coresume(c, [p0, p1, ...])",
     "Run or continue coroutine C, passing the parameters. Returns true, or false and an error message. Runtime errors in coroutines don't stop the program: wrap in assert(coresume(c)).",
@@ -264,8 +250,11 @@ local DEFS = {
   { "lua", "yield(...)", "Suspend the running coroutine and return to the caller of coresume." },
 }
 
--- Undocumented internals that exist as globals (never reported as undefined).
-M.INTERNALS = {
+-- Globals that exist at runtime but are not part of the documented API.
+-- They are not offered anywhere; they are only known so that using them is
+-- not reported as an undefined global.
+M.UNDOCUMENTED = {
+  "ipairs", "inext", "next", "pack", "unpack", "tostring", "trace", "mapdraw",
   "holdframe", "_set_fps", "_update_buttons", "_mark_cpu", "_startframe",
   "_update_framerate", "_set_mainloop_exists", "_map_display",
   "_get_menu_item_selected", "_pausemenu", "set_draw_slice", "_ENV",
@@ -422,8 +411,8 @@ M.STDLIB = {
   },
   table = {
     _ = "PICO-8 has no 'table' library",
-    insert = "add(tbl, val, [index])", remove = "deli(tbl, [i])", unpack = "unpack(tbl)",
-    pack = "pack(...)", concat = "a loop with ..", sort = "a custom sort function",
+    insert = "add(tbl, val, [index])", remove = "deli(tbl, [i])", unpack = "tbl[1], tbl[2], ...",
+    pack = "{...} and select(\"#\", ...)", concat = "a loop with ..", sort = "a custom sort function",
   },
   coroutine = {
     _ = "PICO-8 has no 'coroutine' library",
@@ -432,7 +421,7 @@ M.STDLIB = {
   },
   os = { _ = "PICO-8 has no 'os' library", time = "time() / stat(80..95)", clock = "time()", date = "stat(80..95)" },
   io = { _ = "PICO-8 has no 'io' library", write = "print() / printh()", read = "stat(30)/stat(31) (devkit keyboard)" },
-  debug = { _ = "PICO-8 has no 'debug' library", traceback = "trace()" },
+  debug = { _ = "PICO-8 has no 'debug' library" },
   bit32 = { _ = "PICO-8 has no 'bit32' library: use the operators & | ^^ ~ << >> >>> <<> >><" },
   utf8 = { _ = "PICO-8 has no 'utf8' library (strings are P8SCII)" },
   package = { _ = "PICO-8 has no 'package' library" },
@@ -483,7 +472,7 @@ end
 M.parse_signature = parse_signature
 
 M.functions = {} -- name -> entry
-M.list = {} -- documented functions in manual order
+M.list = {} -- the same entries in manual order
 M.categories = {
   { "system", "System" }, { "graphics", "Graphics" }, { "tables", "Tables" },
   { "input", "Input" }, { "audio", "Audio" }, { "map", "Map" }, { "memory", "Memory" },
@@ -502,8 +491,6 @@ for _, d in ipairs(DEFS) do
     description = desc,
     ret = extra.ret,
     since = extra.since,
-    deprecated = extra.deprecated,
-    hidden = extra.hidden,
     check = extra.check ~= false,
     param_docs = extra.params or {},
     max_args = 0,
@@ -519,9 +506,7 @@ for _, d in ipairs(DEFS) do
     end
   end
   M.functions[entry.name] = entry
-  if not entry.hidden then
-    M.list[#M.list + 1] = entry
-  end
+  M.list[#M.list + 1] = entry
 end
 
 M.glyphs = {} -- glyph -> { doc, value, name }
@@ -534,60 +519,61 @@ M.builtins = {}
 for name in pairs(M.functions) do
   M.builtins[name] = true
 end
-for _, name in ipairs(M.INTERNALS) do
+for _, name in ipairs(M.UNDOCUMENTED) do
   M.builtins[name] = true
 end
 for g in pairs(M.glyphs) do
   M.builtins[g] = true
 end
 
---- Names for syntax highlighting (documented and hidden functions).
+--- Names for syntax highlighting.
 function M.builtin_function_names()
   local names = vim.tbl_keys(M.functions)
   table.sort(names)
   return names
 end
 
---- Markdown documentation of a function.
-function M.markdown(entry)
-  local out = { "```lua" }
-  for _, s in ipairs(entry.signatures) do
-    out[#out + 1] = "function " .. s.label
-  end
-  out[#out + 1] = "```"
-  local tags = {}
-  if entry.since then
-    tags[#tags + 1] = "**new in " .. entry.since .. "**"
-  end
-  if entry.deprecated then
-    tags[#tags + 1] = "*deprecated: " .. entry.deprecated .. "*"
-  end
-  if #tags > 0 then
-    out[#out + 1] = table.concat(tags, " · ")
+--- Plain text documentation of a function (no markdown: it is shown as is
+--- by hover windows and completion menus).
+---@param entry table
+---@param opts? { signatures?: boolean } signatures = false leaves them out
+function M.doc_text(entry, opts)
+  opts = opts or {}
+  local out = {}
+  if opts.signatures ~= false then
+    for _, s in ipairs(entry.signatures) do
+      out[#out + 1] = s.label
+    end
     out[#out + 1] = ""
   end
   out[#out + 1] = entry.description
-  local pdocs = {}
-  local seen = {}
+  local pdocs, width, seen = {}, 0, {}
   for _, s in ipairs(entry.signatures) do
     for _, p in ipairs(s.params) do
       local doc = entry.param_docs[p.name]
       if doc and not seen[p.name] then
         seen[p.name] = true
-        pdocs[#pdocs + 1] = ("- `%s` %s"):format(p.name, doc)
+        pdocs[#pdocs + 1] = { p.name, doc }
+        width = math.max(width, #p.name)
       end
     end
   end
   if #pdocs > 0 then
     out[#out + 1] = ""
-    vim.list_extend(out, pdocs)
+    for _, pd in ipairs(pdocs) do
+      out[#out + 1] = ("  %-" .. width .. "s  %s"):format(pd[1], pd[2])
+    end
   end
   if entry.ret then
     out[#out + 1] = ""
     out[#out + 1] = "Returns: " .. entry.ret
   end
   out[#out + 1] = ""
-  out[#out + 1] = ("*PICO-8 %s · %s*"):format(M.VERSION, entry.category)
+  local footer = ("PICO-8 %s, %s"):format(M.VERSION, entry.category)
+  if entry.since then
+    footer = footer .. (" (new in %s)"):format(entry.since)
+  end
+  out[#out + 1] = footer
   return table.concat(out, "\n")
 end
 

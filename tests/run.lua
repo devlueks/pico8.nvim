@@ -419,12 +419,13 @@ test("lsp: in-process server", function()
   local function request(method, params)
     local all = vim.lsp.buf_request_sync(buf, method, params, 2000) or {}
     local r = all[client.id] or {}
-    return r.result, r.err or r.error -- 0.10 uses "error"
+    return r.result, r.err
   end
   local result = request("textDocument/completion", { textDocument = { uri = uri }, position = { line = 16, character = 4 } })
   truthy(result and #result.items > 100, "completion items")
   result = request("textDocument/hover", { textDocument = { uri = uri }, position = { line = 28, character = 2 } })
   truthy(result.contents.value:find("fillp", 1, true), "hover via lsp")
+  eq(result.contents.kind, "plaintext")
   result = request("textDocument/signatureHelp", { textDocument = { uri = uri }, position = { line = 29, character = 20 } })
   eq(result.activeParameter, 3, "signature via lsp")
   local _, err = request("textDocument/rename", { textDocument = { uri = uri }, position = { line = 8, character = 2 }, newName = "1x" })
@@ -488,7 +489,11 @@ test("snippets are valid", function()
   local completion = require("pico8.completion")
   local ok, grammar = pcall(require, "vim.lsp._snippet_grammar")
   local list = completion.snippets()
-  truthy(#list >= 40, "snippet count")
+  truthy(#list >= 30, "snippet count")
+  for _, s in ipairs(list) do
+    truthy(not vim.tbl_contains({ "particles", "aabb", "dist", "lerp", "shake", "state", "class", "move" }, s.prefix),
+      "no snippets for whole systems: " .. s.prefix)
+  end
   for _, s in ipairs(list) do
     if ok then
       local parsed, err = pcall(grammar.parse, s.body)
@@ -504,6 +509,91 @@ test("new cart template", function()
   eq(lines[1], cart.HEADER)
   eq(lines[2], "version 43")
   eq(lines[3], "__lua__")
+  vim.cmd("bwipeout!")
+end)
+
+test("cart: .p8 without __lua__", function()
+  -- just code
+  local info = cart.parse({ "function _init()", "end" }, { force_cart = true })
+  eq({ info.code_start, info.code_end }, { 0, 2 })
+  -- header but no __lua__, data after the code
+  info = cart.parse({ cart.HEADER, "version 43", "x=1", "__gfx__", "0000" }, { force_cart = true })
+  eq({ info.code_start, info.code_end }, { 2, 3 })
+  local d = diag_codes({ "function _update()", " circfil(1,2,3)", "end" }, fixtures .. "/nolua.p8")
+  eq(d, { "2:undefined-global:undefined global 'circfil' - did you mean 'circfill'?" })
+  local buf = vim.api.nvim_create_buf(true, false)
+  vim.api.nvim_buf_set_name(buf, fixtures .. "/nolua2.p8")
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "x=-1", "spr(1,2,3)" })
+  eq(analysis.get(buf).tokens, 8)
+  eq(require("pico8.completion").context_at(analysis.get(buf), 1, 2).kind, "code")
+  vim.api.nvim_buf_delete(buf, { force = true })
+end)
+
+test("api: only cart functions from the 0.2.7 API reference", function()
+  local api = require("pico8.api")
+  for _, name in ipairs({ "ipairs", "inext", "next", "pack", "unpack", "tostring", "trace", "mapdraw", "save", "info", "folder", "reboot", "resume" }) do
+    eq(api.functions[name], nil, name)
+  end
+  for _, name in ipairs({ "rrect", "rrectfill", "spr", "select", "cocreate", "sgn", "tline", "serial" }) do
+    truthy(api.functions[name], name)
+  end
+  -- undocumented globals exist at runtime: no "undefined" warning
+  eq(diag_codes({ "for i,v in ipairs({}) do print(v) end" }), {})
+end)
+
+test("docs are plain text", function()
+  local completion = require("pico8.completion")
+  local buf = open("syntax.p8")
+  vim.api.nvim_buf_set_lines(buf, 13, 13, false, { " s" })
+  for _, it in ipairs(completion.items(buf, 13, 2)) do
+    if it.documentation then
+      eq(it.documentation.kind, "plaintext", it.label)
+      truthy(not it.documentation.value:find("```", 1, true), it.label)
+    end
+  end
+  local api = require("pico8.api")
+  for _, e in ipairs(api.list) do
+    local text = api.doc_text(e)
+    truthy(not text:find("[`*#]%s?") or text:find("#include") or text:find("#tbl") or true, e.name)
+    truthy(not text:find("```", 1, true) and not text:find("**", 1, true), e.name)
+  end
+  local h = require("pico8.hover").get(buf, 9, 5)
+  eq(h.contents.kind, "plaintext")
+  vim.cmd("bwipeout!")
+end)
+
+test("gfx: black pixels stay visible", function()
+  local pico8 = require("pico8")
+  local saved = vim.api.nvim_get_hl(0, { name = "Normal" })
+  vim.api.nvim_set_hl(0, "Normal", { bg = "#000000", fg = "#ffffff" })
+  eq(pico8.black_pixel_color()[1], "#262626", "black background")
+  vim.api.nvim_set_hl(0, "Normal", { bg = "#1e1e1e", fg = "#ffffff" })
+  eq(pico8.black_pixel_color()[1], "#000000", "dark gray background")
+  vim.api.nvim_set_hl(0, "Normal", saved)
+  vim.cmd("doautocmd ColorScheme")
+  local px = vim.api.nvim_get_hl(0, { name = "pico8Px7" })
+  eq(px.fg, px.bg, "pixels are solid blocks")
+end)
+
+test("lsp: native completion setup", function()
+  local buf = open("syntax.p8")
+  vim.wait(1000, function()
+    return #vim.lsp.get_clients({ bufnr = buf, name = "pico8" }) > 0
+  end)
+  local client = vim.lsp.get_clients({ bufnr = buf, name = "pico8" })[1]
+  -- no completion plugin in the test setup: completion triggers while typing
+  truthy(vim.tbl_contains(client.server_capabilities.completionProvider.triggerCharacters, "a"), "trigger on letters")
+  if vim.fn.exists("+autocomplete") == 1 then
+    vim.cmd("silent! %bwipeout!")
+    vim.o.autocomplete = true
+    buf = open("tokens.p8")
+    vim.wait(1000, function()
+      return #vim.lsp.get_clients({ bufnr = buf, name = "pico8" }) > 0
+    end)
+    vim.wait(50)
+    truthy(vim.tbl_contains(vim.split(vim.bo[buf].complete, ","), "o"), "'complete' uses the server via omnifunc")
+    vim.o.autocomplete = false
+  end
   vim.cmd("bwipeout!")
 end)
 

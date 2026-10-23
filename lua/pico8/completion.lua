@@ -291,14 +291,16 @@ local function params_label(sig)
   return sig.label:match("%b()") or "()"
 end
 
-local function md(value)
-  return { kind = "markdown", value = value }
+-- Documentation is plain text: markdown is not rendered by every
+-- completion menu / documentation window.
+local function doc(value)
+  return { kind = "plaintext", value = value }
 end
 
 local function user_fn_doc(name, params, path)
-  local s = ("```lua\nfunction %s(%s)\n```"):format(name, table.concat(params or {}, ", "))
+  local s = ("function %s(%s)"):format(name, table.concat(params or {}, ", "))
   if path then
-    s = s .. "\n\n*defined in " .. vim.fs.basename(path) .. "*"
+    s = s .. "\n\ndefined in " .. vim.fs.basename(path)
   end
   return s
 end
@@ -381,7 +383,7 @@ function M.items(bufnr, line, col, opts)
       label = name,
       kind = Kind.Event,
       detail = "PICO-8 callback",
-      documentation = md("```lua\nfunction " .. name .. "()\n```\n" .. api.CALLBACKS[name]),
+      documentation = doc("function " .. name .. "()\n\n" .. api.CALLBACKS[name]),
       sortText = "2" .. name,
     }
     if cx.funcname and snippets_ok then
@@ -409,9 +411,8 @@ function M.items(bufnr, line, col, opts)
       kind = Kind.Function,
       detail = sig.label,
       labelDetails = { detail = params_label(sig), description = e.category },
-      documentation = md(api.markdown(e)),
+      documentation = doc(api.doc_text(e, { signatures = #e.signatures > 1 })),
       sortText = "2" .. e.name,
-      tags = e.deprecated and { 1 } or nil,
     }
     if call_snips and cx.next_char ~= "(" then
       add(item, call_snippet(e.name, sig.params), SNIPPET)
@@ -429,7 +430,7 @@ function M.items(bufnr, line, col, opts)
         kind = Kind.Constant,
         detail = g[2],
         labelDetails = { description = g[4] },
-        documentation = md(("`%s` = %d — %s"):format(g[1], g[3], g[2])),
+        documentation = doc(("%s == %d  (%s)"):format(g[1], g[3], g[2])),
         sortText = "3" .. g[4],
       })
     end
@@ -445,7 +446,7 @@ function M.items(bufnr, line, col, opts)
       if info.kind == "function" then
         item.kind = Kind.Function
         item.labelDetails = { detail = "(" .. table.concat(info.params or {}, ", ") .. ")" }
-        item.documentation = md(user_fn_doc(name, info.params))
+        item.documentation = doc(user_fn_doc(name, info.params))
         if call_snips and cx.next_char ~= "(" then
           local ps = {}
           for _, p in ipairs(info.params or {}) do
@@ -472,7 +473,7 @@ function M.items(bufnr, line, col, opts)
       }
       if g.kind == "function" then
         item.labelDetails.detail = "(" .. table.concat(params or {}, ", ") .. ")"
-        item.documentation = md(user_fn_doc(name, params, g.path))
+        item.documentation = doc(user_fn_doc(name, params, g.path))
       end
       if g.kind == "function" and call_snips and cx.next_char ~= "(" then
         local ps = {}
@@ -499,7 +500,7 @@ function M.items(bufnr, line, col, opts)
         kind = Kind.Snippet,
         detail = s.description,
         labelDetails = { description = "snippet" },
-        documentation = md("```lua\n" .. M.snippet_preview(s.body) .. "\n```"),
+        documentation = doc(M.snippet_preview(s.body)),
         sortText = "4" .. s.prefix,
       }, s.body, SNIPPET)
     end

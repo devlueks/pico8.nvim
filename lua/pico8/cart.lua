@@ -34,6 +34,7 @@ end
 ---@return table info
 ---   is_cart     boolean
 ---   lua_line    integer|nil  line of the "__lua__" header
+---   header_end  integer      first line after the "pico-8 cartridge" / "version" header
 ---   code_start  integer      first code line
 ---   code_end    integer      one past the last code line
 ---   sections    { name, line }[]
@@ -58,22 +59,27 @@ function M.parse(lines, opts)
     info.is_cart = true
   end
 
-  if info.is_cart then
-    info.lua_line = lua_line
-    if lua_line then
-      info.code_start = lua_line + 1
-      info.code_end = nlines
-      for _, s in ipairs(info.sections) do
-        if s.line > lua_line then
-          info.code_end = s.line
-          break
-        end
-      end
-    else
-      info.code_start, info.code_end = nlines, nlines
+  -- optional header lines
+  local header_end = 0
+  if lines[1] and lines[1]:find("^pico%-8 cartridge") then
+    header_end = 1
+    if lines[2] and lines[2]:find("^version %d+%s*$") then
+      header_end = 2
     end
-  else
-    info.code_start, info.code_end = 0, nlines
+  end
+  info.header_end = header_end
+
+  -- The code starts after "__lua__". Without a "__lua__" section (a .p8
+  -- file that is just code, or a cart missing the header) everything after
+  -- the optional header is code, up to the first data section.
+  info.lua_line = lua_line
+  info.code_start = lua_line and lua_line + 1 or header_end
+  info.code_end = nlines
+  for _, s in ipairs(info.sections) do
+    if s.line >= info.code_start then
+      info.code_end = s.line
+      break
+    end
   end
 
   -- code tabs
@@ -100,7 +106,7 @@ end
 --- Which section is line `l` in? Returns "lua" for code lines, the section
 --- name for data lines and "header" for the cart header.
 function M.section_at(info, l)
-  if not info.is_cart then
+  if not info.is_cart or (l >= info.code_start and l < info.code_end) then
     return "lua"
   end
   local current = "header"

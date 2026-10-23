@@ -1,4 +1,4 @@
--- pico8.nvim — PICO-8 0.2.7 support for Neovim:
+-- pico8.nvim: PICO-8 0.2.7 support for Neovim
 -- token count, completion, snippets, syntax highlighting and diagnostics.
 
 local config = require("pico8.config")
@@ -7,6 +7,44 @@ local M = {}
 
 local attached = {} -- bufnr -> true
 local timers = {} -- bufnr -> uv timer
+
+-- Neovim 0.12 renamed the "buffer" key of nvim_create_autocmd() to "buf".
+local BUF = vim.fn.has("nvim-0.12") == 1 and "buf" or "buffer"
+
+local function autocmd(event, bufnr, opts)
+  opts[BUF] = bufnr
+  return vim.api.nvim_create_autocmd(event, opts)
+end
+
+-- Relative luminance of a 0xRRGGBB color.
+local function luminance(rgb)
+  local function channel(c)
+    c = c / 255
+    return c <= 0.03928 and c / 12.92 or ((c + 0.055) / 1.055) ^ 2.4
+  end
+  local r, g, b = math.floor(rgb / 65536) % 256, math.floor(rgb / 256) % 256, rgb % 256
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+end
+
+local LIFTED_BLACK = { "#262626", 235 }
+
+--- Color used for black (color 0) pixels in __gfx__ / __label__.
+--- On a black (or transparent, dark) background real black would be
+--- invisible, so a dark gray is used to still show the pixel as a block.
+function M.black_pixel_color()
+  local black = config.get().highlight.black
+  if type(black) == "string" and black ~= "auto" then
+    return { black, nil }
+  end
+  local bg = vim.api.nvim_get_hl(0, { name = "Normal", link = false }).bg
+  if bg == nil then
+    return vim.o.background == "dark" and LIFTED_BLACK or { "#000000", 16 }
+  end
+  if luminance(bg) < 0.0075 then -- darker than about #151515
+    return LIFTED_BLACK
+  end
+  return { "#000000", 16 }
+end
 
 local function set_highlights()
   local links = {
@@ -19,9 +57,13 @@ local function set_highlights()
   for name, link in pairs(links) do
     vim.api.nvim_set_hl(0, name, { link = link, default = true })
   end
-  -- __gfx__ / __label__ pixels in the PICO-8 palette
+  -- __gfx__ / __label__ pixels in the PICO-8 palette: every pixel is drawn
+  -- as a solid block (foreground = background color)
   for k, c in pairs(require("pico8.api").PALETTE) do
-    vim.api.nvim_set_hl(0, "pico8Px" .. k, { fg = c[1], bg = c[1], ctermfg = c[2], ctermbg = c[2], default = true })
+    if k == "0" then
+      c = M.black_pixel_color()
+    end
+    vim.api.nvim_set_hl(0, "pico8Px" .. k, { fg = c[1], bg = c[1], ctermfg = c[2], ctermbg = c[2] })
   end
 end
 
@@ -83,7 +125,8 @@ local function maybe_insert_template(bufnr)
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, require("pico8.cart").template())
 end
 
---- Attach pico8.nvim to a buffer (called from ftplugin/pico8.lua).
+--- Attach pico8.nvim to a buffer (called from ftplugin/pico8.lua). The
+--- language server is attached by vim.lsp.enable("pico8").
 function M.attach(bufnr)
   bufnr = (bufnr == nil or bufnr == 0) and vim.api.nvim_get_current_buf() or bufnr
   if not attached[bufnr] then
@@ -91,30 +134,23 @@ function M.attach(bufnr)
     maybe_insert_template(bufnr)
 
     local group = vim.api.nvim_create_augroup("pico8_buf_" .. bufnr, { clear = true })
-    vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "InsertLeave" }, {
+    autocmd({ "TextChanged", "TextChangedI", "InsertLeave" }, bufnr, {
       group = group,
-      buffer = bufnr,
       callback = function()
         M.refresh(bufnr)
       end,
     })
-    vim.api.nvim_create_autocmd("BufEnter", {
+    autocmd("BufEnter", bufnr, {
       group = group,
-      buffer = bufnr,
       callback = function()
         require("pico8.analysis").invalidate()
         M.refresh(bufnr, 0)
       end,
     })
     -- includes and including carts may have changed
-    vim.api.nvim_create_autocmd("BufWritePost", {
+    autocmd("BufWritePost", bufnr, { group = group, callback = refresh_all })
+    autocmd({ "BufWipeout", "BufDelete" }, bufnr, {
       group = group,
-      buffer = bufnr,
-      callback = refresh_all,
-    })
-    vim.api.nvim_create_autocmd({ "BufWipeout", "BufDelete" }, {
-      group = group,
-      buffer = bufnr,
       callback = function()
         detach(bufnr)
         pcall(vim.api.nvim_del_augroup_by_id, group)
@@ -122,9 +158,7 @@ function M.attach(bufnr)
     })
   end
 
-  if config.get().lsp.enabled then
-    require("pico8.lsp").attach(bufnr)
-  else
+  if not config.get().lsp.enabled then
     vim.bo[bufnr].omnifunc = "v:lua.require'pico8.completion'.omnifunc"
   end
   M.refresh(bufnr, 0)
@@ -135,13 +169,9 @@ end
 function M.setup(opts)
   config.setup(opts)
   set_highlights()
+  require("pico8.lsp").enable(config.get().lsp.enabled)
   for b in pairs(attached) do
     if vim.api.nvim_buf_is_valid(b) then
-      if not config.get().lsp.enabled then
-        for _, client in ipairs(vim.lsp.get_clients({ bufnr = b, name = "pico8" })) do
-          vim.lsp.buf_detach_client(b, client.id)
-        end
-      end
       M.attach(b)
       if not config.get().diagnostics.enabled then
         vim.diagnostic.reset(require("pico8.diagnostics").ns, b)
@@ -161,9 +191,8 @@ function M.stats(bufnr)
 end
 
 set_highlights()
-vim.api.nvim_create_autocmd("ColorScheme", {
-  group = vim.api.nvim_create_augroup("pico8_highlights", { clear = true }),
-  callback = set_highlights,
-})
+local hl_group = vim.api.nvim_create_augroup("pico8_highlights", { clear = true })
+vim.api.nvim_create_autocmd("ColorScheme", { group = hl_group, callback = set_highlights })
+vim.api.nvim_create_autocmd("OptionSet", { group = hl_group, pattern = "background", callback = set_highlights })
 
 return M

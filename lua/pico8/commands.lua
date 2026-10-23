@@ -157,68 +157,72 @@ end
 
 -- docs ------------------------------------------------------------------------------
 
+local function heading(out, title, ch)
+  out[#out + 1] = title
+  out[#out + 1] = string.rep(ch or "-", vim.fn.strdisplaywidth(title))
+end
+
 local function doc_lines(name)
   if name == "stat" or name == "stat()" then
-    local out = { "# stat(x)", "" }
+    local out = {}
+    heading(out, "stat(x)", "=")
     local keys = vim.tbl_keys(api.STAT)
     table.sort(keys)
     for _, k in ipairs(keys) do
-      out[#out + 1] = ("- `stat(%d)` %s"):format(k, api.STAT[k])
+      out[#out + 1] = ("%-10s %s"):format(("stat(%d)"):format(k), api.STAT[k])
     end
     return out
   elseif name == "memory" then
-    local out = { "# Memory map", "" }
+    local out = {}
+    heading(out, "Memory map", "=")
     local keys = vim.tbl_keys(api.MEMORY)
     table.sort(keys)
     for _, k in ipairs(keys) do
-      out[#out + 1] = ("- `0x%04x` %s"):format(k, api.MEMORY[k])
+      out[#out + 1] = ("0x%04x  %s"):format(k, api.MEMORY[k])
     end
     return out
   end
   local e = api.functions[name]
   if e then
-    return vim.split(api.markdown(e), "\n")
+    return vim.split(api.doc_text(e), "\n")
   end
   if api.CALLBACKS[name] then
-    return { "```lua", "function " .. name .. "()", "```", api.CALLBACKS[name] }
+    return { "function " .. name .. "()", "", api.CALLBACKS[name] }
   end
 end
 
 local function cheatsheet()
-  local out = { "# PICO-8 " .. api.VERSION .. " API", "" }
+  local out = {}
+  heading(out, "PICO-8 " .. api.VERSION .. " API", "=")
+  out[#out + 1] = ""
   for _, cat in ipairs(api.categories) do
-    out[#out + 1] = "## " .. cat[2]
-    out[#out + 1] = ""
-    out[#out + 1] = "```lua"
+    heading(out, cat[2])
     for _, e in ipairs(api.list) do
       if e.category == cat[1] then
         for _, s in ipairs(e.signatures) do
-          out[#out + 1] = s.label .. (e.since and ("  -- new in " .. e.since) or "")
+          out[#out + 1] = s.label .. (e.since and ("    (new in " .. e.since .. ")") or "")
         end
       end
     end
-    out[#out + 1] = "```"
     out[#out + 1] = ""
   end
-  out[#out + 1] = "## Callbacks"
-  out[#out + 1] = ""
+  heading(out, "Callbacks")
   for _, name in ipairs(api.CALLBACK_ORDER) do
-    out[#out + 1] = ("- `%s()` %s"):format(name, api.CALLBACKS[name])
+    out[#out + 1] = ("%-12s %s"):format(name .. "()", api.CALLBACKS[name])
   end
   out[#out + 1] = ""
-  out[#out + 1] = "## Buttons"
-  out[#out + 1] = ""
+  heading(out, "Buttons")
   for _, g in ipairs(api.GLYPHS) do
     if g[3] then
-      out[#out + 1] = ("- `%s` = %d  %s"):format(g[1], g[3], g[2])
+      out[#out + 1] = ("%s = %d  %s"):format(g[1], g[3], g[2])
     end
   end
   out[#out + 1] = ""
-  out[#out + 1] = "See also `:Pico8Docs stat` and `:Pico8Docs memory`."
+  out[#out + 1] = "See also :Pico8Docs stat and :Pico8Docs memory"
   return out
 end
 
---- :Pico8Docs [name] — documentation float for NAME (or the word under the
+--- :Pico8Docs [name]: documentation float for NAME (or the word under the
 --- cursor); without either, a cheat sheet buffer.
 function M.docs(name)
   if not name or name == "" then
@@ -233,7 +237,7 @@ function M.docs(name)
     return
   end
   if lines then
-    vim.lsp.util.open_floating_preview(lines, "markdown", { border = "rounded", focus_id = "pico8_docs", max_width = 80 })
+    vim.lsp.util.open_floating_preview(lines, "text", { border = "rounded", focus_id = "pico8_docs", max_width = 80 })
     return
   end
   vim.cmd("botright vnew")
@@ -243,7 +247,7 @@ function M.docs(name)
   vim.bo[buf].bufhidden = "wipe"
   vim.bo[buf].swapfile = false
   vim.bo[buf].modifiable = false
-  vim.bo[buf].filetype = "markdown"
+  vim.bo[buf].filetype = "text"
   pcall(vim.api.nvim_buf_set_name, buf, "pico8://api")
 end
 

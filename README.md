@@ -1,99 +1,104 @@
 # pico8.nvim
 
-PICO-8 **0.2.7** Unterstützung für Neovim: Tokenzähler, Autocomplete, Snippets,
-Syntax-Highlighting und Diagnostics – komplett in Lua, ohne externe Programme.
+[PICO-8](https://www.lexaloffle.com/pico-8.php) **0.2.7** support for Neovim:
+token count, completion, snippets, syntax highlighting and diagnostics.
+Pure Lua, no external programs.
 
 ![pico8.nvim](doc/screenshot.png)
 
 ## Features
 
-- **Tokenzähler** – exakt nach PICO-8-Regeln (gegen
-  [shrinko8](https://github.com/thisismypassport/shrinko8) verifiziert, auch für
-  Carts mit über 8000 Tokens):
-  - Gesamtzahl `1234/8192 tokens · 5678/65535 chars` als virtueller Text an `__lua__`
-  - Tokens pro Code-Tab an jeder `-->8`-Zeile, optional pro Funktion
-  - `#include`-Dateien werden mitgezählt, wie beim Ausführen in PICO-8
-  - `:Pico8Tokens` Report (teuerste Funktionen), `:'<,'>Pico8Tokens` für eine Auswahl
-  - Statusline-Komponente `require("pico8").statusline()`
-- **Autocomplete** über einen eingebauten In-Process-Language-Server
-  (kein externes Binary). Funktioniert mit blink.cmp, nvim-cmp
-  (+ cmp-nvim-lsp), mini.completion, der eingebauten Neovim-LSP-Completion und `<C-x><C-o>`:
-  - komplette 0.2.7-API mit Signaturen und Doku (inkl. `rrect`/`rrectfill`)
-  - Platzhalter für Pflichtparameter: `spr(${1:n}, ${2:x}, ${3:y})`
-  - Callbacks `_init`, `_update`, `_update60`, `_draw`
-  - Button-Glyphen per Name: `left` → `⬅️`, `xbutton` → `❎`
-  - eigene Funktionen/Variablen – auch aus `#include`-Dateien – und Tabellenfelder nach `.` / `:`
-  - Dateinamen nach `#include `
-- **Snippets** (43 Stück): Game-Loop, Cart-Gerüst, Klassen, Coroutines, Kollision,
-  Partikel, State-Machine, Bewegung, P8SCII-Outline `\^o` / Underline `\^u` (neu in 0.2.7) …
-  Im Autocomplete enthalten und zusätzlich als VSCode-Snippets (`package.json`) für LuaSnip & Co.
-- **Syntax-Highlighting** für `.p8`-Carts:
-  - PICO-8-Lua: `!=`, `+=`, `..=`, `\`, `^^`, `>>>`, `<<>`, `>><`, `@ % $`, `?`-Kurzform, `//`-Kommentare,
-    Hex/Binär-Zahlen mit Nachkommastellen, Glyphen, `#include`, Labels
-  - P8SCII-Steuercodes in Strings (`\f8`, `\#1`, `\^w`, `\^o8ff`, `\^u` …)
-  - Cart-Sektionen; `__gfx__` und `__label__` werden in der PICO-8-Palette angezeigt (Sprites als Pixelart)
+- **Token count**, using PICO-8's own rules (verified against
+  [shrinko8](https://github.com/thisismypassport/shrinko8), including carts with more than 8000 tokens):
+  - total `1234/8192 tokens · 5678/65535 chars` as virtual text on the `__lua__` line
+  - tokens per code tab on every `-->8` line, optionally per function
+  - code pulled in with `#include` is counted, like PICO-8 does when running the cart
+  - `:Pico8Tokens` report (most expensive functions), `:'<,'>Pico8Tokens` for a selection
+  - statusline component `require("pico8").statusline()`
+- **Completion** from a built-in, in-process language server (no external binary).
+  Works with blink.cmp, nvim-cmp (+ cmp-nvim-lsp), mini.completion, Neovim's built-in
+  LSP completion, 0.12's `'autocomplete'` and `<C-x><C-o>`:
+  - the PICO-8 0.2.7 API (only functions that carts can call) with signatures and documentation
+  - placeholders for required arguments: `spr(${1:n}, ${2:x}, ${3:y})`
+  - callbacks `_init`, `_update`, `_update60`, `_draw`
+  - button glyphs by name: `left` → `⬅️`, `xbutton` → `❎`
+  - your own functions and variables, also from `#include`d files, and table fields after `.` / `:`
+  - file names after `#include `
+- **Snippets** for language constructs and single API calls: game loop, cart skeleton, callbacks,
+  `if`/`for`/`while` variants, `for o in all(t)`, `btnp`, `menuitem`, `cartdata`, coroutines,
+  `fillp`, outlined (`\^o`) and underlined (`\^u`) text (new in 0.2.7), `#include`, `-->8` …
+  Offered by the completion and also shipped as VSCode snippets (`package.json`) for LuaSnip & co.
+- **Syntax highlighting** for `.p8` carts:
+  - PICO-8 Lua: `!=`, `+=`, `..=`, `\`, `^^`, `>>>`, `<<>`, `>><`, `@ % $`, the `?` shorthand,
+    `//` comments, hex/binary numbers with fractions, glyphs, `#include`, labels
+  - P8SCII control codes in strings (`\f8`, `\#1`, `\^w`, `\^o8ff`, `\^u` …)
+  - cart sections; `__gfx__` and `__label__` data is drawn as pixels in the PICO-8 palette
+    (black pixels stay visible on black backgrounds)
 - **Diagnostics**:
-  - Syntaxfehler (inkl. PICO-8-Kurzschreibweisen, `goto`/Labels, `break`, `...`)
-  - Token- und Zeichenlimit überschritten
-  - undefinierte Globals mit Vorschlag: `circfil` → `circfill`, `Spr` → `spr`, `⬅` → `⬅️`
-  - Lua-Standardbibliothek, die es in PICO-8 nicht gibt: `math.floor` → `flr(x)`, `table.insert` → `add` …
-  - `score += 1` ohne dass `score` je zugewiesen wird
-  - zu viele Argumente für API-Funktionen
-  - unbenutzte Locals / Funktionen / letzte Parameter (jedes kostet Tokens)
-  - fehlende `#include`-Dateien und Fehler darin
-- **Extras**: Hover-Doku (`K`) inkl. Tokenkosten eigener Funktionen, Hex/Binär-Anzeige von Zahlen,
-  Speicheradressen (`0x5f2d` …) und `stat(n)`-Bedeutungen; Signaturhilfe; Go-to-Definition (auch in
-  `#include`-Dateien); Referenzen; Umbenennen; Outline nach Tabs; `:Pico8Run`; Einrückung mit
-  Kurzform-`if`; `:checkhealth pico8`.
+  - syntax errors (including PICO-8 shorthands, `goto`/labels, `break`, `...`)
+  - token and character limit exceeded
+  - undefined globals with suggestions: `circfil` → `circfill`, `Spr` → `spr`, `⬅` → `⬅️`
+  - Lua standard library functions PICO-8 doesn't have: `math.floor` → `flr(x)`, `table.insert` → `add` …
+  - `score += 1` while `score` is never assigned
+  - too many arguments for API functions
+  - unused locals / local functions / last parameters (each one costs tokens)
+  - missing `#include` files and errors inside them
+- **More**: hover documentation (`K`) including the token cost of your functions, hex/binary values
+  of numbers, memory addresses (`0x5f2d` …) and `stat(n)` meanings; signature help; go to definition
+  (also into `#include`d files); references; rename; document symbols grouped by tab; `:Pico8Run`;
+  indentation that understands the one-line `if (cond) stmt`; `:checkhealth pico8`.
 
-## Voraussetzungen
+All documentation is plain text, so it looks right in every completion menu and hover window.
 
-- Neovim **0.10** oder neuer (getestet mit 0.10.4 und 0.11.4)
-- optional: PICO-8 für `:Pico8Run`
+## Requirements
+
+- Neovim **0.12** recommended (tested with 0.12.6); 0.11 works too
+- optional: PICO-8 for `:Pico8Run`
 
 ## Installation
+
+With Neovim 0.12's built-in plugin manager:
+
+```lua
+vim.pack.add({ "https://github.com/USERNAME/pico8.nvim" })
+```
 
 [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ```lua
 {
-  "DEIN-GITHUB-NAME/pico8.nvim", -- oder lokal: dir = "~/pfad/zu/pico8.nvim"
+  "USERNAME/pico8.nvim",
   ft = "pico8",
-  opts = {}, -- optional, siehe Konfiguration
+  opts = {}, -- optional, see Configuration
 }
 ```
 
-Ohne Plugin-Manager (native Packages):
+Calling `setup()` is optional, the defaults work out of the box.
 
-```sh
-git clone https://github.com/DEIN-GITHUB-NAME/pico8.nvim \
-  ~/.local/share/nvim/site/pack/plugins/start/pico8.nvim
-```
-
-`setup()` ist optional – das Plugin funktioniert mit den Standardwerten.
-
-Erkannt werden `*.p8` (Carts) sowie `*.p8.lua` (Code für `#include`).
-Für andere `.lua`-Dateien z. B.:
+`*.p8` files (carts) and `*.p8.lua` files (code for `#include`) get the filetype `pico8`.
+A `.p8` file does not need a `__lua__` section: without one, the whole file (after the optional
+`pico-8 cartridge` / `version` header, up to the first data section) is treated as code.
+For other `.lua` files:
 
 ```lua
-vim.filetype.add({ pattern = { [".*/mein_spiel/.*%.lua"] = "pico8" } })
+vim.filetype.add({ pattern = { [".*/my_game/.*%.lua"] = "pico8" } })
 ```
 
-## Konfiguration
+## Configuration
 
-Standardwerte:
+Defaults:
 
 ```lua
 require("pico8").setup({
-  pico8_path = nil,        -- Pfad zu PICO-8 für :Pico8Run (nil = $PATH + übliche Orte)
-  run_args = {},           -- z. B. { "-windowed", "1" }
+  pico8_path = nil,        -- PICO-8 executable for :Pico8Run (nil: $PATH and the usual places)
+  run_args = {},           -- e.g. { "-windowed", "1" }
 
-  lsp = { enabled = true }, -- eingebauter Language Server (Completion, Hover, ...)
+  lsp = { enabled = true }, -- built-in language server "pico8"
 
   completion = {
-    call_snippets = true,  -- Pflichtparameter als Platzhalter einfügen
-    snippets = true,       -- Snippets im Autocomplete anbieten
-    native = "auto",       -- Neovim-0.11-Autocomplete, wenn kein cmp/blink installiert ist
+    call_snippets = true,  -- insert required arguments as placeholders
+    snippets = true,       -- offer the snippets in the completion menu
+    native = "auto",       -- built-in completion while typing when no completion plugin is installed
   },
 
   diagnostics = {
@@ -101,111 +106,134 @@ require("pico8").setup({
     debounce = 250,
     undefined_globals = true,
     unused = true,
-    unused_params = true,     -- unbenutzter letzter Parameter
+    unused_params = true,     -- an unused last parameter
     unused_loop_vars = false,
     arg_count = true,
-    globals = {},             -- zusätzliche bekannte Globals
+    globals = {},             -- extra known globals
   },
 
   tokens = {
-    virtual_text = true,      -- Zähler an __lua__ und -->8
-    function_hints = false,   -- Tokens pro Funktion
-    warn_ratio = 0.9,         -- ab 90 % des Limits als Warnung färben
+    virtual_text = true,      -- counts on __lua__ and -->8
+    function_hints = false,   -- token count of every function
+    warn_ratio = 0.9,         -- highlight counts as a warning from 90 % of a limit
   },
 
-  highlight = { gfx_colors = true }, -- __gfx__/__label__ in der PICO-8-Palette
+  highlight = {
+    gfx_colors = true,        -- __gfx__ / __label__ as pixels in the PICO-8 palette
+    black = "auto",           -- color of black pixels: "auto" or "#rrggbb"
+  },
 
-  template = true,            -- neue, leere .p8-Dateien mit Cart-Gerüst füllen
+  template = true,            -- fill new, empty .p8 files with a cart skeleton
 })
 ```
 
-### Autocomplete-Plugins
+### Language server
 
-- **blink.cmp**: funktioniert direkt (LSP-Quelle ist standardmäßig aktiv).
-- **nvim-cmp**: benötigt [cmp-nvim-lsp](https://github.com/hrsh7th/cmp-nvim-lsp) mit der Quelle `nvim_lsp`.
-- **ohne Plugin**: Unter Neovim 0.11 wird die eingebaute LSP-Completion mit Auto-Trigger aktiviert,
-  sonst `<C-x><C-o>`.
-- **LuaSnip**: `require("luasnip.loaders.from_vscode").lazy_load()` lädt die Snippets aus
-  `package.json`. Damit sie nicht doppelt erscheinen: `completion = { snippets = false }`.
+The server is registered with `vim.lsp.config("pico8", ...)` and started with
+`vim.lsp.enable("pico8")`, so the usual tools work: `:checkhealth vim.lsp`, and in Neovim 0.12
+`:lsp restart pico8` etc. Any field can be overridden:
 
-### Tastenkürzel
+```lua
+vim.lsp.config("pico8", { on_attach = function(client, bufnr) ... end })
+```
 
-Es gelten die normalen LSP-Kürzel – in Neovim 0.11 u. a. `K` (Hover), `grn` (Umbenennen),
-`grr` (Referenzen), `gO` (Symbole), `<C-s>` (Signatur im Insert-Modus). Go-to-Definition z. B. so:
+### Completion
+
+- **blink.cmp**: works as is (the LSP source is enabled by default).
+- **nvim-cmp**: needs [cmp-nvim-lsp](https://github.com/hrsh7th/cmp-nvim-lsp) with the `nvim_lsp` source.
+- **No completion plugin**: Neovim's built-in LSP completion pops up while typing
+  (`completion.native = "auto"`). With Neovim 0.12's `'autocomplete'` option on, the server is
+  added to `'complete'` instead, so it shows up in the same menu.
+- **LuaSnip**: `require("luasnip.loaders.from_vscode").lazy_load()` loads the snippets from
+  `package.json`. Set `completion = { snippets = false }` to avoid seeing them twice.
+
+### Keymaps
+
+The default LSP keymaps apply, e.g. `K` (hover), `grn` (rename), `grr` (references),
+`gO` (document symbols) and `<C-s>` in insert mode (signature help). For example:
 
 ```lua
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "pico8",
   callback = function(ev)
-    vim.keymap.set("n", "gd", vim.lsp.buf.definition, { buffer = ev.buf })
-    vim.keymap.set("n", "<leader>r", "<cmd>Pico8Run<cr>", { buffer = ev.buf })
+    vim.keymap.set("n", "gd", vim.lsp.buf.definition, { buf = ev.buf })
+    vim.keymap.set("n", "<leader>r", "<cmd>Pico8Run<cr>", { buf = ev.buf })
   end,
 })
 ```
+
+(Neovim 0.11: use `buffer = ev.buf`.)
 
 ### Statusline
 
 ```lua
 -- lualine
 sections = { lualine_x = { function() return require("pico8").statusline() end } }
--- oder eigene Formatierung:
+-- or your own format:
 local s = require("pico8").stats() -- { tokens, total_tokens, chars, total_chars, tabs, ... }
 ```
 
-## Befehle
+## Commands
 
-| Befehl | Beschreibung |
+| Command | Description |
 | --- | --- |
-| `:Pico8Tokens` | Token-/Zeichen-Report mit Tabs, `#include`s und den teuersten Funktionen |
-| `:'<,'>Pico8Tokens` | Tokens der markierten Zeilen |
-| `:Pico8Run` | speichert und startet das Cart in PICO-8 (bei `.lua`-Dateien das Cart, das sie inkludiert) |
-| `:Pico8Docs [name]` | API-Doku als Float; ohne Argument ein Cheat-Sheet. Auch `:Pico8Docs stat` / `memory` |
-| `:Pico8Toggle [virtual_text\|function_hints\|diagnostics]` | Anzeige umschalten |
+| `:Pico8Tokens` | token / character report with tabs, `#include`s and the most expensive functions |
+| `:'<,'>Pico8Tokens` | tokens of the selected lines |
+| `:Pico8Run` | save and run the cart in PICO-8 (for a `.lua` file: the cart that includes it) |
+| `:Pico8Docs [name]` | API documentation in a float; without an argument a cheat sheet. Also `:Pico8Docs stat` / `memory` |
+| `:Pico8Toggle [virtual_text\|function_hints\|diagnostics]` | toggle what is shown |
 
 ## Diagnostics
 
-| Code | Bedeutung |
+| Code | Meaning |
 | --- | --- |
-| `syntax` | Syntaxfehler (erster Fehler, wie PICO-8) |
-| `token-limit` / `char-limit` | mehr als 8192 Tokens / 65535 Zeichen (inkl. `#include`) |
-| `include` | `#include`-Datei fehlt oder enthält einen Fehler |
-| `undefined-global` | Global wird gelesen, aber nirgends zugewiesen |
-| `stdlib` | Lua-Standardbibliothek (`math`, `string`, `table`, `require`, …) gibt es in PICO-8 nicht |
-| `arg-count` | zu viele Argumente für eine API-Funktion |
-| `unused` | unbenutzte Locals, lokale Funktionen, letzter Parameter |
+| `syntax` | syntax error (the first one, like PICO-8) |
+| `token-limit` / `char-limit` | more than 8192 tokens / 65535 characters (including `#include`) |
+| `include` | `#include` file is missing or contains an error |
+| `undefined-global` | a global that is read but never assigned |
+| `stdlib` | Lua standard library (`math`, `string`, `table`, `require`, …) does not exist in PICO-8 |
+| `arg-count` | too many arguments for an API function |
+| `unused` | unused locals, local functions, last parameters |
 
-Globals, die das Plugin nicht sehen kann, lassen sich im Code bekannt machen (kompatibel zu shrinko8):
+Globals the plugin can't see can be declared in the code (compatible with shrinko8):
 
 ```lua
 --lint: my_global, other_global
 ```
 
-Globals aus `#include`-Dateien sind automatisch bekannt. Für eine `.lua`-Datei sucht das Plugin
-im selben und im übergeordneten Verzeichnis nach dem `.p8`-Cart, das sie inkludiert, und kennt dann
-dessen Globals, die der anderen Includes und das Gesamt-Tokenbudget.
+Globals from `#include`d files are known automatically. For a `.lua` file the plugin looks for the
+`.p8` cart that includes it (in the same and in the parent directory) and then knows that cart's
+globals, the globals of its other includes and the cart's total token count.
 
-## Wie gezählt wird
+The API covers the functions of the 0.2.7 manual's API reference that a cart can call. Console
+commands (`save`, `folder`, `reboot`, …) are left out. A few undocumented globals that exist at
+runtime (`ipairs`, `next`, `unpack`, …) are not offered anywhere, but using them is not reported
+as an error either.
 
-Wie in PICO-8: Jeder Name, jedes Literal und jeder Operator zählt 1. Kostenlos sind `,` `.` `:` `;`
-`::` schließende Klammern `)` `]` `}`, `end`, `local` und Kommentare. Ein `-` oder `~` direkt vor einer
-Zahl gehört zur Zahl (`x=-1` sind 3 Tokens, `a - 1` ebenfalls 3, `x = - 1` aber 4).
-Zeichen werden in P8SCII gezählt (`⬅️` ist ein Zeichen). Die komprimierte Größe für `.p8.png`
-(Limit 15360 Bytes) berechnet nur PICO-8 selbst (`INFO`).
+## How tokens are counted
 
-## Workflow-Tipps
+Like PICO-8: every name, literal and operator counts 1. Free are `,` `.` `:` `;` `::`, closing
+brackets `)` `]` `}`, `end`, `local` and comments. A `-` or `~` directly in front of a number
+belongs to the number (`x=-1` is 3 tokens, `a - 1` is 3 as well, but `x = - 1` is 4).
+Characters are counted in P8SCII (`⬅️` is one character). The compressed size for `.p8.png`
+(limit 15360 bytes) is only computed by PICO-8 itself (`INFO`).
 
-- PICO-8 lädt eine extern geänderte `.p8` bei `CTRL-R` neu, sofern im PICO-8-Editor nichts ungespeichert ist.
-- Code in `.lua`-Dateien auslagern und per `#include datei.lua` einbinden – das Plugin zählt Tokens
-  und kennt Funktionen über Dateigrenzen hinweg (Completion, Hover, Go-to-Definition).
-- `gf` auf dem Dateinamen einer `#include`-Zeile öffnet die Datei.
+## Tips
+
+- PICO-8 reloads a `.p8` file changed by another editor on `CTRL-R`, as long as there are no unsaved
+  changes in PICO-8's own editors.
+- Put code into `.lua` files and `#include` them: tokens, completion, hover and go to definition
+  work across files.
+- `gf` on the file name of an `#include` line opens that file.
 
 ## Tests
 
 ```sh
-make test            # oder:
+make test
+# or
 nvim --headless -u tests/minimal_init.lua -c "luafile tests/run.lua"
 ```
 
-## Lizenz
+## License
 
 MIT
